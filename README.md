@@ -7,7 +7,7 @@ brew install swig.
 
 Install from the wheel located in root with
 ```bash
- python -m pip install rlang/rlang/dist/rlang-0.2.5-py3-none-any.whl.
+ python -m pip install rlang-0.2.5-py3-none-any.whl.
  ```
 ## Project Structure
 
