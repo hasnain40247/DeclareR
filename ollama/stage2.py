@@ -15,56 +15,39 @@ class Stage2:
             function. Don’t use any primitive outside the provided primitive list corresponding to each
             instance, e.g., if there is no ‘green_door’ in the primitive list you must not use “green_door’
             for the policy function.
-
-            Advice = “If the yellow door is open, go through it and walk to the goal. Otherwise open the
-            yellow door if you have the key."
-            Primitives = [‘Agent’, ‘Wall’, ‘GoalTile’, ‘Lava’, ‘Key’, ‘Door’, ‘Box’, ‘Ball’, ‘left’, ‘right’,
-            ‘forward’, ‘pickup’, ‘drop’, ‘toggle’, ‘done’, ‘pointing_right’, ‘pointing_down’, ‘pointing_left’,
-            ‘pointing_up’, ‘go_to’, ‘step_towards’, ‘yellow_key’, ‘yellow_door’, ‘agent’, ‘goal’, ‘at’, ‘carrying’]
-            
-            Policy main :
-                if yellow_door.is_open :
-                    Execute go_to ( goal )
-                elif carrying ( yellow_key ) and at ( yellow_door ) and not yellow_door . is_open :
-                    Execute toggle
-            
-            Advice = “If you don’t have the key, go get it."
-            Primitives = [‘Agent’, ‘Wall’, ‘GoalTile’, ‘Lava’, ‘Key’, ‘Door’, ‘Box’, ‘Ball’, ‘left’, ‘right’,
-            ‘forward’, ‘pickup’, ‘drop’, ‘toggle’, ‘done’, ‘pointing_right’, ‘pointing_down’, ‘pointing_left’,
-            ‘pointing_up’, ‘go_to’, ‘step_towards’, ‘grey_key’, ‘red_door’, ‘grey_door’, ‘agent’, ‘purple_ball’, ‘at’, ‘carrying’]
-            
-            Policy main :
-                if at ( grey_key ):
-                    Execute pickup
-                elif not carrying ( grey_key ):
-                    Execute go_to ( grey_key )
-            
-            Advice = “If you are carrying a ball and its corresponding box is closed, open the box if you
-            are at it, otherwise go to the box if you can reach it."
-            Primitives = [‘Agent’, ‘Wall’, ‘GoalTile’, ‘Lava’, ‘Key’, ‘Door’, ‘Box’, ‘Ball’, ‘left’, ‘right’,
-            ‘forward’, ‘pickup’, ‘drop’, ‘toggle’, ‘done’, ‘pointing_right’, ‘pointing_down’, ‘pointing_left’,
-            ‘pointing_up’, ‘go_to’, ‘step_towards’, ‘green_ball’, ‘green_box’, ‘purple_box’, ‘agent’,
-            ‘purple_ball’, ‘at’, ‘reachable’, ‘carrying’]
-            
-            Policy main :
-                if carrying ( green_ball ) and not green_box . is_open :
-                    if at ( green_box ):
-                        Execute toggle
-                    elif reachable ( green_box ) :
-                        Execute go_to ( green_box )
-
-            Advice = “Drop any balls for boxes you can’t reach"
-            Primitives = [‘Agent’, ‘Wall’, ‘GoalTile’, ‘Lava’, ‘Key’, ‘Door’, ‘Box’, ‘Ball’, ‘left’, ‘right’,
-            ‘forward’, ‘pickup’, ‘drop’, ‘toggle’, ‘done’, ‘pointing_right’, ‘pointing_down’, ‘pointing_left’,
-            ‘pointing_up’, ‘go_to’, ‘step_towards’, ‘green_ball’, ‘green_box’, ‘purple_box’, ‘agent’,
-            ‘purple_ball’, ‘at’, ‘reachable’, ‘carrying’]
+  
+            Advice = "If the passenger is in the taxi, go to their destination."
+            Primitives = ['Taxi', 'Passenger', 'Destination', 'Location', 'Move', 'Pickup', 'Dropoff', 
+                        'left', 'right', 'up', 'down', 'at', 'in_taxi']
 
             Policy main :
-                if carrying ( green_ball ) and not reachable ( green_box ) :
-                    Execute drop
-                if carrying ( purple_ball ) and not reachable ( purple_box ):
-                    Execute drop
-            
+                if in_taxi ( Passenger ) :
+                    Execute go_to ( Destination )
+
+            Advice = "If the passenger is at the same location as you, pick them up."
+            Primitives = ['Taxi', 'Passenger', 'Destination', 'Location', 'Move', 'Pickup', 'Dropoff', 
+                        'left', 'right', 'up', 'down', 'at', 'in_taxi']
+
+            Policy main :
+                if at ( Passenger ) :
+                    Execute Pickup
+
+            Advice = "If you are at the destination with the passenger, drop them off."
+            Primitives = ['Taxi', 'Passenger', 'Destination', 'Location', 'Move', 'Pickup', 'Dropoff', 
+                        'left', 'right', 'up', 'down', 'at', 'in_taxi']
+
+            Policy main :
+                if in_taxi ( Passenger ) and at ( Destination ) :
+                    Execute Dropoff
+
+            Advice = "If the passenger is not in the taxi, go to them."
+            Primitives = ['Taxi', 'Passenger', 'Destination', 'Location', 'Move', 'Pickup', 'Dropoff', 
+                        'left', 'right', 'up', 'down', 'at', 'in_taxi']
+
+            Policy main :
+                if not in_taxi ( Passenger ) :
+                    Execute go_to ( Passenger )
+
             Now give me the policy for the following:
             Advice = {advice}
             Primitives= {primitives}

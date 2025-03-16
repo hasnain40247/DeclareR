@@ -21,23 +21,23 @@ class Stage1:
             Respond only with one of the following three words: "Policy", "Effect", or "Plan" nothing else.
 
             **Examples:**  
-            Advice = "Don’t touch any mice unless you have gloves on."  
-            Grounding: Effect  
+            Advice = "If the passenger is in the taxi, go to the destination."
+            Grounding: Policy
 
-            Advice = "Walking into lava will kill you."  
-            Grounding: Effect  
+            Advice = "Dropping off the passenger at the wrong location will result in a penalty."
+            Grounding: Effect
 
-            Advice = "First get the money, then go to the green square."  
-            Grounding: Plan  
+            Advice = "First pick up the passenger, then drive to their destination, and finally drop them off."
+            Grounding: Plan
 
-            Advice = "Go through the door to the goal."  
-            Grounding: Plan  
+            Advice = "If there is a passenger at the current location, pick them up."
+            Grounding: Policy
 
-            Advice = "If you have the key, go to the door, otherwise you need to get the key."  
-            Grounding: Policy  
+            Advice = "If you try to move into a wall, your action will have no effect."
+            Grounding: Effect
 
-            Advice = "If there are any closed doors, open them."  
-            Grounding: Policy  
+            Advice = "Pick up the passenger at (2,3), drop them off at (4,1)."
+            Grounding: Plan
 
             **Now classify the following advice:**  
             Advice = "{advice}"  
