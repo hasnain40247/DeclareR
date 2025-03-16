@@ -4,7 +4,10 @@ from rlang.grounding.utils.primitives  import VectorState
 from tqdm import tqdm
 import gym
 import rlang
-
+import matplotlib
+matplotlib.use('Agg')  
+import matplotlib.pyplot as plt
+import pygame
 class RLangRmaxAgent:
     def __init__(self, env, knowledge=None, num_states=500, num_actions=6, r_max=20, gamma=0.95, delta=0.01, M=1):
 
@@ -137,8 +140,10 @@ class RLangRmaxAgent:
 
         return all_rewards
     
-    def test(self, num_episodes=10):
+    def test(self, num_episodes=10,render=True):
         self.env = gym.make(self.env.spec.id, render_mode="human")  
+        pygame.display.set_mode((500, 500))
+
         total_rewards = []  
       
         for episode in range(num_episodes):
@@ -159,10 +164,37 @@ class RLangRmaxAgent:
 
             total_rewards.append(total_reward)
 
+        if render:
+            self.env.close()
+            self.env = gym.make('Taxi-v3')
+            self.env.reset()
+        
         self.env.close()
+        pygame.quit()
+
 
         return np.mean(total_rewards)
     
+   
+    def plot_training_rewards(self,rewards, window_size=100,save_path="training_rewards.png"):
+        episodes = np.arange(len(rewards))
+    
+        smoothed_rewards = np.convolve(rewards, np.ones(window_size) / window_size, mode='valid')
+        
+        plt.figure(figsize=(10, 5))
+        plt.plot(episodes, rewards, label="Rewards per Episode", alpha=0.3)
+        plt.plot(episodes[:len(smoothed_rewards)], smoothed_rewards, label=f"Moving Average (window={window_size})", color='red')
+        plt.xlabel("Episodes")
+        plt.ylabel("Total Reward")
+        plt.title("Training Rewards Over Episodes")
+        plt.legend()
+        plt.grid()
+        
+        plt.savefig(save_path, dpi=300, bbox_inches='tight') 
+        print(f"Plot saved as {save_path}")
+
+        plt.close()  
+
 
 if __name__ == "__main__":
     env = gym.make("Taxi-v3")
@@ -173,4 +205,9 @@ if __name__ == "__main__":
     agent = RLangRmaxAgent(env)
     rewards = agent.train(n_episodes=200)
     print(f"Average reward without policy: {agent.test(10)}")
+    agent.plot_training_rewards(rewards_with_policy,save_path="./plots/rmax_training_rewards_knowledge.png")
+    agent.plot_training_rewards(rewards,save_path="./plots/rmax_training_rewards.png")
+
+
+
 

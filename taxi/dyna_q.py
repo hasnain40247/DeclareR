@@ -5,7 +5,10 @@ from collections import defaultdict
 from tqdm import tqdm
 import rlang
 from rlang.grounding.utils.primitives import VectorState
-
+import matplotlib
+matplotlib.use('Agg')  
+import matplotlib.pyplot as plt
+import pygame
 class DynaQAgent:
     def __init__(self, env, n_planning_steps, alpha=0.1, gamma=0.99, epsilon=0.1, knowledge=None, p_policy=0.2):
         self.env = env
@@ -105,8 +108,12 @@ class DynaQAgent:
                 s_next, r, d = self.model[(s, a)]
                 self.update_q_table(s, a, s_next, r, d)
     
-    def test(self, num_episodes=100):
+    def test(self, num_episodes=100,render=True):
         self.env = gym.make(self.env.spec.id, render_mode="human")  
+    
+        pygame.display.set_mode((500, 500))
+
+ 
         total_rewards = []
         for _ in range(num_episodes):
             state, info = self.env.reset()
@@ -120,10 +127,36 @@ class DynaQAgent:
                 episode_reward += reward
             total_rewards.append(episode_reward)
         
+        if render:
+            self.env.close()
+            self.env = gym.make('Taxi-v3')
+            self.env.reset()
+        
         self.env.close()
+        pygame.quit()
+
         return np.mean(total_rewards)
-    
+
    
+    def plot_training_rewards(self,rewards, window_size=100,save_path="training_rewards.png"):
+        episodes = np.arange(len(rewards))
+    
+        smoothed_rewards = np.convolve(rewards, np.ones(window_size) / window_size, mode='valid')
+        
+        plt.figure(figsize=(10, 5))
+        plt.plot(episodes, rewards, label="Rewards per Episode", alpha=0.3)
+        plt.plot(episodes[:len(smoothed_rewards)], smoothed_rewards, label=f"Moving Average (window={window_size})", color='red')
+        plt.xlabel("Episodes")
+        plt.ylabel("Total Reward")
+        plt.title("Training Rewards Over Episodes")
+        plt.legend()
+        plt.grid()
+        
+        plt.savefig(save_path, dpi=300, bbox_inches='tight') 
+        print(f"Plot saved as {save_path}")
+
+        plt.close()  
+
 
 if __name__ == "__main__":
     env = gym.make("Taxi-v3")
@@ -134,3 +167,7 @@ if __name__ == "__main__":
     agent = DynaQAgent(env, n_planning_steps=50)
     rewards = agent.train(n_episodes=1500)
     print(f"Average reward without policy: {agent.test(10)}")
+    agent.plot_training_rewards(rewards_with_policy,save_path="./plots/dyna_q_training_rewards_knowledge.png")
+    agent.plot_training_rewards(rewards,save_path="./plots/dyna_q_training_rewards.png")
+
+

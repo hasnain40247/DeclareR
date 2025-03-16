@@ -6,6 +6,12 @@ from rlang.grounding.utils.primitives import VectorState
 import rlang
 from rlang.agents.RLangPolicyAgentClass import RLangPolicyAgent
 from tqdm import tqdm
+import matplotlib
+matplotlib.use('Agg')  
+import matplotlib.pyplot as plt
+import pygame
+import os  # To force quit Pygame if needed
+
 
 class RLangQLearningAgent:
     def __init__(self, env,knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
@@ -83,10 +89,13 @@ class RLangQLearningAgent:
     
     def test(self, episodes=10, render=True):
         self.env = gym.make('Taxi-v3', render_mode='human')
+    
+        pygame.display.set_mode((500, 500))
 
         rewards_per_episode = np.zeros(episodes)
         for i in range(episodes):
             state = self.env.reset()[0]
+        
             terminated, truncated, rewards = False, False, 0
             
             while not (terminated or truncated):
@@ -98,14 +107,37 @@ class RLangQLearningAgent:
         
         if render:
             self.env.close()
-            self.env = gym.make('Taxi-v3', render_mode='human')
+            self.env = gym.make('Taxi-v3')
+            self.env.reset()
         
         self.env.close()
+        pygame.quit()
         print(f"Average reward over {episodes} test episodes: {np.mean(rewards_per_episode)}")
         return np.mean(rewards_per_episode)
+    
+
+    def plot_training_rewards(self,rewards, window_size=100,save_path="training_rewards.png"):
+        episodes = np.arange(len(rewards))
+    
+        smoothed_rewards = np.convolve(rewards, np.ones(window_size) / window_size, mode='valid')
+        
+        plt.figure(figsize=(10, 5))
+        plt.plot(episodes, rewards, label="Rewards per Episode", alpha=0.3)
+        plt.plot(episodes[:len(smoothed_rewards)], smoothed_rewards, label=f"Moving Average (window={window_size})", color='red')
+        plt.xlabel("Episodes")
+        plt.ylabel("Total Reward")
+        plt.title("Training Rewards Over Episodes")
+        plt.legend()
+        plt.grid()
+        
+        plt.savefig(save_path, dpi=300, bbox_inches='tight') 
+        print(f"Plot saved as {save_path}")
+
+        plt.close()  
 
 if __name__ == '__main__':
     env = gym.make("Taxi-v3")
+    np.set_printoptions(threshold=np.inf) 
 
     knowledge = rlang.parse_file("./taxi.rlang")
     agent_with_policy = RLangQLearningAgent(env, knowledge=knowledge)
@@ -114,4 +146,6 @@ if __name__ == '__main__':
     agent = RLangQLearningAgent(env)
     rewards = agent.train(episodes=15000)
     print(f"Training complete. Average reward: {agent.test(10)}")
+    agent.plot_training_rewards(rewards_with_policy,save_path="./plots/q_learning_training_rewards_knowledge.png")
+    agent.plot_training_rewards(rewards,save_path="./plots/q_learning_training_rewards.png")
 
