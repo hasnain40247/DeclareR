@@ -77,8 +77,17 @@ Effect =
 """
         
         response = ollama.chat(model=self.model, messages=[{"role": "user", "content": prompt}])
-        return response['message']['content'].strip()
+        cleaned_output = self.clean_effect_output(response['message']['content'].strip())
+        
+        return cleaned_output
+     
 
+    def clean_effect_output(self, raw_output):
+        """Removes anything before 'Effect main' to ensure clean formatting."""
+        effect_start = raw_output.find("Effect main")
+        if effect_start != -1:
+            return raw_output[effect_start:]  
+        return raw_output  
 class PolicyAgent(BaseAgent):
     def __init__(self,system_prompt,few_shots,environment_definitions, model="llama3:8b"):
         super().__init__(system_prompt,few_shots,environment_definitions, model=model)
@@ -103,17 +112,26 @@ Policy =
 """
         
         response = ollama.chat(model=self.model, messages=[{"role": "user", "content": prompt}])
-        return response['message']['content'].strip()
 
+        cleaned_output = self.clean_policy_output(response['message']['content'].strip())
+        
+        return cleaned_output
 
+    def clean_policy_output(self, raw_output):
+        """Removes anything before 'Policy <dynamic_name>:' to ensure clean formatting."""
+        match = re.search(r"(?m)^Policy \w+:", raw_output)  # Match any line that starts with "Policy <name>:"
+        if match:
+            return raw_output[match.start():]  # Keep everything from "Policy <name>:" onwards
+        return raw_output  # If no match is found, return the original response
 
 class ChatApp(ctk.CTk):
-    def __init__(self, effect_agent, policy_agent):
+    def __init__(self, effect_agent, policy_agent,environment_constants):
         super().__init__()
         self.effect_agent = effect_agent
         self.policy_agent = policy_agent
         self.effect_text = None
         self.policy_text = None
+        self.environment_constants=environment_constants
 
         self.title("Ollama Taxi RLang Policy Generator")
         self.attributes("-fullscreen", True)  
@@ -157,19 +175,29 @@ class ChatApp(ctk.CTk):
         user_text = self.user_input.get().strip()
         if not user_text:
             return
+        
         self.add_chat_bubble(f"You: {user_text}", sender="user")
+
+        typing_bubble = ctk.CTkLabel(self.chat_frame, text="Generating...", wraplength=900, justify="left",
+                                    fg_color="#2E2E2E", text_color="white", corner_radius=10, padx=15, pady=10)
+        typing_bubble.pack(anchor="w", pady=5, padx=20)
+
+        self.update_idletasks()
 
         def fetch_output():
             if self.is_generating_effect:
-                self.effect_text = self.effect_agent.generate_effect(user_text)
-                self.add_chat_bubble(f"Effect:\n{self.effect_text}", sender="bot")
+                response = self.effect_agent.generate_effect(user_text)
+                self.effect_text = response
             else:
-                self.policy_text = self.policy_agent.generate_policy(user_text)
-                self.add_chat_bubble(f"Policy:\n{self.policy_text}", sender="bot")
+                response = self.policy_agent.generate_policy(user_text)
+                self.policy_text = response
+            typing_bubble.destroy()
+
+            self.add_chat_bubble(response, sender="bot")
 
         threading.Thread(target=fetch_output, daemon=True).start()
         self.user_input.delete(0, "end")
-
+        
     def toggle_mode(self):
         """Toggles between Effect and Policy generation."""
         self.is_generating_effect = not self.is_generating_effect
@@ -186,8 +214,8 @@ class ChatApp(ctk.CTk):
             self.add_chat_bubble("Both Effect and Policy must be generated before compiling!", sender="bot")
             return
         
-        file_content = f"\n{self.effect_text}\n\n{self.policy_text}"
-        file_path = "compiled_policy.txt"
+        file_content = f"\n{self.environment_constants}\n{self.effect_text}\n\n{self.policy_text}"
+        file_path = "compiled_policy.rlang"
 
         with open(file_path, "w") as file:
             file.write(file_content)
@@ -201,7 +229,7 @@ if __name__ == "__main__":
 
     try:
         stage1.start_ollama_serve()
-        app = ChatApp(stage1, stage2)
+        app = ChatApp(stage1, stage2,environment_constants=constants.environment_definitions)
         app.mainloop()
     finally:
         stage1.stop_ollama_serve()

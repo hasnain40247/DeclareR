@@ -1,0 +1,47 @@
+
+
+Constant passenger_locs := [[0, 0], [0, 4], [4, 0], [4, 3]]
+Constant destination_locs := [[0, 0], [0, 4], [4, 0], [4, 3]]
+
+Factor taxi_position := S[0, 1]  
+Factor x := taxi_position[0]
+Factor y := taxi_position[1]
+
+Factor passenger_location := S[2]  
+Factor destination := S[3] 
+
+Proposition at_passenger := taxi_position in passenger_locs
+Proposition at_destination := taxi_position in destination_locs
+Proposition carrying_passenger := passenger_location == 4
+
+Action move_s := 0
+Action move_n := 1
+Action move_e := 2
+Action move_w := 3
+Action pick_up := 4
+Action drop_off := 5
+        
+Effect main:
+    if at_passenger and A == pick_up:
+        S'.passenger_location -> 4
+    elif carrying_passenger and A == drop_off:
+        if destination == passenger_location:
+            Reward 20
+        else:
+            Reward -10
+    elif A == pick_up or A == drop_off:
+        Reward -10
+    elif A == move_e or A == move_n or A == move_s or A == move_w:
+        Reward -2  
+        if y == 0 and A == move_n:  
+            S' -> S
+        if y == 4 and A == move_s:  
+            S'
+        if x == 0 and A == move_w:  
+            S' -> S
+        if x == 4 and A == move_e:  
+            S' -> S
+
+Policy main:
+    if at_passenger and not carrying_passenger:
+        Execute pick_up
