@@ -1,0 +1,26 @@
+
+Effect main:
+    if at_passenger and A == pick_up:
+        S'.passenger_location -> 4
+    if carrying_passenger and A == drop_off:
+        if at_destination:
+            Reward 20
+        else:
+            Reward -10
+    elif A == pick_up or A == drop_off:
+        Reward -10
+    else:
+        if (A == move_e or A == move_n or A == move_s or A == move_w):
+          Reward -2  
+        if y == 0 and A == move_n:  
+            S' -> S
+        if y == 4 and A == move_s:  
+            S' -> S
+        if x == 0 and A == move_w:  
+            S' -> S
+        if x == 4 and A == move_e:  
+            S' -> S
+
+Policy main:
+    if at_passenger and not carrying_passenger:
+        Execute pick_up
