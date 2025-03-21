@@ -23,24 +23,28 @@ Action drop_off := 5
         
 Effect main:
     if at_passenger and A == pick_up:
-        S'.passenger_location -> 4
-    elif carrying_passenger and A == drop_off:
-        if destination == passenger_location:
-            Reward 20
+        if passenger_location == 4:
+            S'.carrying_passenger -> True
+            S'.taxi_position -> 4
         else:
             Reward -10
-    elif A == pick_up or A == drop_off:
-        Reward -10
-    elif A == move_e or A == move_n or A == move_s or A == move_w:
-        Reward -2  
+    elif carrying_passenger and A == drop_off:
+        if destination == 4:
+            Reward 20
+            S' -> S
+        else:
+            Reward -10
+    elif at_destination:
+        pass
+    else:
         if y == 0 and A == move_n:  
-            S' -> S
+            S'.y -> 1
         if y == 4 and A == move_s:  
-            S'
+            S'.y -> 3
         if x == 0 and A == move_w:  
-            S' -> S
+            S'.x -> 1
         if x == 4 and A == move_e:  
-            S' -> S
+            S'.x -> 3
 
 Policy main:
     if at_passenger and not carrying_passenger:
