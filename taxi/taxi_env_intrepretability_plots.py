@@ -1,8 +1,6 @@
 import matplotlib
 matplotlib.use = lambda *args, **kwargs: None
 
-import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
 import shap
 from lime.lime_tabular import LimeTabularExplainer
@@ -120,6 +118,7 @@ class GetExplainabilityPlotsForEnv:
         plt.ylabel("Action")
         plt.title("Action Trajectory Over Time")
         plt.grid()
+        plt.tight_layout()
         plt.savefig("plots/episode_action_trajectory.png")
         plt.close()
 
@@ -135,6 +134,7 @@ class GetExplainabilityPlotsForEnv:
         plt.title("State Visit Heatmap")
         plt.xlabel("Taxi Column")
         plt.ylabel("Taxi Row")
+        plt.tight_layout()
         plt.savefig("plots/episode_statevisits_trajectory.png")
         plt.close()
 
@@ -147,6 +147,7 @@ class GetExplainabilityPlotsForEnv:
         plt.ylabel("Reward")
         plt.title("Reward Trajectory Over Time")
         plt.grid()
+        plt.tight_layout()
         plt.savefig("plots/episode_rewards_trajectory.png")
         plt.close()
 
@@ -170,6 +171,7 @@ class GetExplainabilityPlotsForEnv:
 
         plt.title("Policy Visualization")
         plt.axis('off')
+        plt.tight_layout()
         plt.savefig("plots/taxi_policy.png")
         plt.close()
 
@@ -183,6 +185,7 @@ class GetExplainabilityPlotsForEnv:
         plt.xlabel("Features")
         plt.ylabel("Importance")
         plt.title("Feature Importance from Decision Tree")
+        plt.tight_layout()
         plt.savefig("plots/feature_importance_decision_tree.png")
         plt.close()
 
@@ -341,21 +344,6 @@ class LimeExplainer:
 
         return explanations
 
-    def save_lime_explanations(self, explanations, state_to_explain):
-        """Save LIME explanations as images in the 'plots' folder."""
-        
-        for action in range(self.action_dim):
-            # Get the LIME explanation figure
-            fig = explanations[action].as_pyplot_figure()
-            
-            # Generate a filename using the state and action
-            filename = f"plots/lime_explanation_state_{state_to_explain}_action_{action}_{self.action_symbols[action]}.png"
-            
-            # Save the figure
-            fig.savefig(filename)
-            plt.close(fig)  # Close the figure after saving to free up memory
-            print(f"Saved explanation for action '{self.action_symbols[action]}' for state {state_to_explain} as {filename}")
-
     def print_lime_explanations(self, explanations):
         """Print the LIME explanations."""
         
@@ -393,7 +381,6 @@ def convert_q_table(agent):
 
 
 
-
 if __name__ == '__main__':
     
     env = gym.make("Taxi-v3")
@@ -427,7 +414,6 @@ if __name__ == '__main__':
 
     explanations = lime_explainer.generate_lime_explanations(state_to_explain=62)
 
-    lime_explainer.save_lime_explanations(explanations, state_to_explain=62)
     lime_explainer.print_lime_explanations(explanations)
 
 
