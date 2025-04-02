@@ -483,7 +483,7 @@ class ChatApp(ctk.CTk):
                     self.add_chat_bubble(f"{target_type} passed validation!", sender="bot")
                 elif "ERROR" in output:
                     print(output)
-                    self.add_chat_bubble(f"{target_type} validation failed:\n Refine Your {target_type}", sender="bot")
+                    self.add_chat_bubble(f"{target_type} validation failed:\n {error_output} \n Refine Your {target_type}", sender="bot")
                 else:
                     self.add_chat_bubble(f"⚠️ Unexpected validator output:\n{output or error_output}", sender="bot")
 

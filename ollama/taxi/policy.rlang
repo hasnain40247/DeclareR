@@ -21,17 +21,12 @@ Action pick_up := 4
 Action drop_off := 5
 
 Policy destination_policy:
-    if not carrying_passenger:
-        if at_passenger:
-            Execute pick_up
-        else:
-            if not at_passenger:
-                if x < passenger_x:
-                    Execute move_e
-                elif x > passenger_x:
-                    Execute move_w
-                elif y < passenger_y:
-                    Execute move_n
-                elif y > passenger_y:
-                    Execute move_s
-
+ if carrying_passenger and not at_destination:
+      if x < destination_x:
+          Execute move_e
+      elif x > destination_x:
+          Execute move_w
+      elif y < destination_y:
+          Execute move_n
+      elif y > destination_y:
+          Execute move_s

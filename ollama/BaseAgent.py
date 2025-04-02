@@ -3,7 +3,7 @@ import re
 import subprocess
 import json
 class BaseAgent:
-    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="llama3:8b"):
+    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="gemma3:12b"):
         self.model = model
         self.process = None  
         self.system_prompt=system_prompt
@@ -41,8 +41,7 @@ class BaseAgent:
             except Exception as e:
                 print(f"[⚠️] Failed to parse vocab.json at {self.vocab_path}: {e}")
 
-        print("prims")
-        print(primitives)
+  
         return f"[{', '.join(sorted(primitives))}]"
 
 

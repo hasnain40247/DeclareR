@@ -2,7 +2,7 @@ import ollama
 from BaseAgent import BaseAgent
 import re
 class PolicyAgent(BaseAgent):
-    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="llama3:8b"):
+    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="gemma3:12b"):
         super().__init__(system_prompt,few_shots,environment_definitions,vocab=vocab, model=model)
 
     def generate_policy(self, user_input):
@@ -55,11 +55,11 @@ Policy =
         ### Rules:
             - Take the provided `Policy` function.
             - Apply the user’s feedback **exactly**.
+            - If prompted to rename the policy replace the current name with the new one.
             - Strictly return the **revised** `Policy` only — do NOT explain your changes.
             - Do NOT include any headings like 'Policy =' or additional comments.
-            - If prompted to rename the policy replace the current name with the new one.
-            - Strictly return the entirety of the **revised** policy only, which starts with : `Policy policy_name:`
-            - Do not attach any explanatory prefix or suffixes to your output.
+   
+
             
 
         **Original Policy:**
