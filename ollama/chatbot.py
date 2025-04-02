@@ -4,11 +4,24 @@ import threading
 import constants
 from EffectAgent import EffectAgent
 from PolicyAgent import PolicyAgent
+import re
+import os
 
+
+def extract_policy_name(policy_text):
+    match = re.search(r"Policy\s+(\w+):", policy_text)
+    return match.group(1) if match else "unknown_policy"
 
 class ChatApp(ctk.CTk):
-    def __init__(self, effect_agent, policy_agent, environment_constants):
+    def __init__(self,effect_agent, policy_agent, environment_constants, vocab=None,env_name="taxi"):
         super().__init__()
+        self.generated_effect_history = [] 
+        self.env_name=env_name
+        
+        self.generated_policy_history=[]
+        self.vocab=vocab
+
+
         self.effect_agent = effect_agent
         self.policy_agent = policy_agent
         self.effect_text = None
@@ -33,7 +46,7 @@ class ChatApp(ctk.CTk):
             self,
             fg_color="transparent",  
             border_width=3,  
-            border_color="#D9DFC6",
+            border_color="#FFD3B6",
             corner_radius=25  
         )
         self.chat_container.grid(row=0, column=0, padx=40, pady=20, columnspan=2, sticky="nsew")
@@ -57,10 +70,9 @@ class ChatApp(ctk.CTk):
             text_color="#424242",
             font=("Inter", 27, "italic")
         )
-        self.welcome_message.pack(expand=True, pady=150)  # Center it
+        self.welcome_message.pack(expand=True, pady=150)  
 
 
-        # 🧾 Input Container Frame (Rounded with Enclosed Button)
         self.input_container = ctk.CTkFrame(
             self,
             fg_color="#EFF3EA",  # White background
@@ -101,23 +113,65 @@ class ChatApp(ctk.CTk):
 
         self.is_generating_effect = True
        
+       
+        
         self.toggle_button = ctk.CTkButton(
             self,
             text="Switch To Policy Mode",
-            fg_color="#EFF3EA",
+            fg_color="#FFD3B6",
             text_color="#424242",
             border_width=3,
             font=("Inter", 20, "bold"),
             height=60,
             hover=False,
-            border_color="#D9DFC6",  
+            border_color="#FFD3B6",  
             command=self.toggle_mode
         )
         self.toggle_button.grid(row=2, column=0,pady=10, padx=(40,10), sticky="ew")
+        # self.validate = ctk.CTkButton(
+        #         self,
+        #         text="Save",
+        #         fg_color="#D9DFC6",
+        #         hover=False,
+        #         text_color="#424242",
+        #         font=("Inter", 20, "bold"),
+        #         height=60,
+        #         command=self.validate_effect
 
-     
+        #     )
+        # self.validate.grid(row=2, column=1,pady=10, padx=(10,40))
+
+        # self.compile_button = ctk.CTkButton(
+        #     self,
+        #     text="Save",
+        #     fg_color="#D9DFC6",
+        #     hover=False,
+        #     text_color="#424242",
+        #     font=("Inter", 20, "bold"),
+        #     height=60,
+        #     command=self.compile_to_file
+        # )
+        # self.compile_button.grid(row=2, column=1,pady=10, padx=(10,40))
+        self.controls_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.controls_frame.grid(row=2, column=1, padx=(10, 40), pady=10, sticky="ew")
+        self.controls_frame.grid_columnconfigure((0, 1), weight=1)  # two equal columns
+
+        # ✅ Validate Button
+        self.validate_button = ctk.CTkButton(
+            self.controls_frame,
+            text="Validate",
+            fg_color="#EFF3EA",
+            hover=False,
+            text_color="#424242",
+            font=("Inter", 20, "bold"),
+            height=60,
+            command=self.validate
+        )
+        self.validate_button.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+
+        # ✅ Compile Button
         self.compile_button = ctk.CTkButton(
-            self,
+            self.controls_frame,
             text="Save",
             fg_color="#D9DFC6",
             hover=False,
@@ -126,8 +180,7 @@ class ChatApp(ctk.CTk):
             height=60,
             command=self.compile_to_file
         )
-        self.compile_button.grid(row=2, column=1,pady=10, padx=(10,40))
-
+        self.compile_button.grid(row=0, column=1, padx=(5, 0), sticky="ew")
 
         self.user_input.bind("<Return>", lambda event: self.generate_output())
 
@@ -144,7 +197,8 @@ class ChatApp(ctk.CTk):
         bubble.pack(anchor=text_align, pady=10, padx=40)
 
 
-        self.chat_frame._parent_canvas.yview_moveto(1)
+        # self.chat_frame._parent_canvas.yview_moveto(1)
+        self.after(100, lambda: self.chat_frame._parent_canvas.yview_moveto(1))
 
     def generate_output(self):
         """Handles user input and displays chat bubbles."""
@@ -169,22 +223,50 @@ class ChatApp(ctk.CTk):
 
         def fetch_output():
   
-            for _ in range(3): 
-                time.sleep(0.5)
-                typing_bubble.configure(text="Generating" + "." * (_ % 3 + 1))
-                self.update_idletasks()
+            # for _ in range(3): 
+            #     time.sleep(0.5)
+            #     typing_bubble.configure(text="Generating" + "." * (_ % 3 + 1))
+            #     self.update_idletasks()
 
      
-            if self.is_generating_effect:
-                response = self.effect_agent.generate_effect(user_text)
-                self.effect_text = response
-            else:
-                response = self.policy_agent.generate_policy(user_text)
-                self.policy_text = response
+            # if self.is_generating_effect:
+            #         stream = self.effect_agent.generate_effect_stream(user_text)
+            # else:
+            #         stream = self.policy_agent.generate_policy_stream(user_text)
 
-        
+            if self.is_generating_effect:
+            
+                if not self.generated_effect_history:
+                    stream = self.effect_agent.generate_effect_stream(user_text)
+                else:
+                    last_effect = self.generated_effect_history[-1]
+                    stream = self.effect_agent.refine_effect_stream(last_effect, user_text)
+            else:
+                if not self.generated_policy_history:
+                    stream = self.policy_agent.generate_policy_stream(user_text)
+                else:
+                    last_effect = self.generated_policy_history[-1]
+                    stream = self.policy_agent.refine_policy_stream(last_effect, user_text)
+              
+      
+            response_text = ""
+            for chunk in stream:
+                delta = chunk['message']['content']
+                delta = chunk['message']['content'].replace("```", "")
+                response_text += delta
+                typing_bubble.configure(text=response_text)
+                self.update_idletasks()
+
+            if self.is_generating_effect:
+                self.effect_text = response_text
+                self.generated_effect_history.append(response_text)
+            else:
+                self.policy_text = response_text
+
+                self.generated_policy_history.append(response_text)
+
             typing_bubble.destroy()
-            self.add_chat_bubble(response, sender="bot")
+            self.add_chat_bubble(response_text, sender="bot")
 
         threading.Thread(target=fetch_output, daemon=True).start()
         self.user_input.delete(0, "end")
@@ -217,10 +299,14 @@ class ChatApp(ctk.CTk):
             text=mode
             
         )
-        self.user_input.configure(
-            placeholder_text=f"Describe your {mode_text}..."
-        )
+        # self.user_input.configure(
+        #     placeholder_text=f"Describe your {mode_text}..."
+        # )
         self.user_input.delete(0, "end") 
+        self.user_input.focus()
+        self.user_input.update()
+        self.user_input.icursor("end")
+        self.user_input.select_clear()
         self.chat_container.configure(
             border_color=border_color,
         )
@@ -232,11 +318,11 @@ class ChatApp(ctk.CTk):
         #     self.add_chat_bubble("Both Effect and Policy must be generated before compiling!", sender="bot")
         #     return
 
-        # file_content = f"\n{self.environment_constants}\n{self.effect_text}\n\n{self.policy_text}"
-        file_path = "compiled_policy.rlang"
+        file_content =f'import "{self.vocab}"'+f"\n{self.environment_constants}\n{self.effect_text}\n\n{self.policy_text}"
+        file_path = f"./{self.env_name}/{self.env_name}_policy.rlang"
 
-        # with open(file_path, "w") as file:
-        #     file.write(file_content)
+        with open(file_path, "w") as file:
+            file.write(file_content)
 
         for widget in self.winfo_children():
             widget.destroy()
@@ -247,7 +333,6 @@ class ChatApp(ctk.CTk):
         self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(0, weight=1)
 
-        # Frame to hold preview
         preview_frame = ctk.CTkFrame(
             self,
             fg_color="#FFFDF0",
@@ -275,14 +360,14 @@ class ChatApp(ctk.CTk):
         preview_textbox.insert("1.0", content)
         preview_textbox.focus()
 
-        # Save button
+
         def save_edited_file():
             updated_content = preview_textbox.get("1.0", "end-1c")
             with open(file_path, "w") as file:
                 file.write(updated_content)
-            preview_textbox.configure(border_color="#A2D5AB")  # Visual feedback
+            preview_textbox.configure(border_color="#A2D5AB") 
 
-        # Controls frame (bottom row)
+
         controls_frame = ctk.CTkFrame(self, fg_color="transparent")
         controls_frame.grid(row=1, column=0, pady=(0, 30), sticky="ew")
 
@@ -317,7 +402,177 @@ class ChatApp(ctk.CTk):
         )
         exit_button.grid(row=0, column=1, padx=(10,55),sticky="ew")
 
+    def validate(self):
+        is_effect = self.is_generating_effect
+        target_type = "Effect" if is_effect else "Policy"
+        source_text = self.effect_text if is_effect else self.policy_text
 
+        if not source_text:
+            self.add_chat_bubble(f"⚠️ You need to generate a {target_type} before validating it.", sender="bot")
+            return
+
+
+        typing_bubble = ctk.CTkLabel(
+            self.chat_frame,
+            text="Validating.",
+            wraplength=900,
+            justify="left",
+            fg_color="#FFD3B6",
+            text_color="#333",
+            font=("Inter", 20, "italic"),
+            corner_radius=10,
+            padx=20,
+            pady=10
+        )
+        typing_bubble.pack(anchor="w", pady=10, padx=40)
+        self.update_idletasks()
+
+        loading_texts = ["Validating.", "Validating..", "Validating..."]
+        animating = True
+
+        def animate(i=0):
+            if not animating:
+                return
+            typing_bubble.configure(text=loading_texts[i % len(loading_texts)])
+            self.after(500, animate, i + 1)
+
+        animate()
+
+        def run_validation():
+            nonlocal animating
+            try:
+                filename = f"./{self.env_name}/effect.rlang" if is_effect else f"./{self.env_name}/policy.rlang"
+                with open(filename, "w") as f:
+                    if not is_effect:
+                        f.write(f'import "{self.vocab}"\n'+self.environment_constants.strip() + "\n\n" + source_text.strip())
+                    else:
+                        f.write(self.environment_constants.strip() + "\n\n" + source_text.strip())
+
+                venv_python_path = "../../.venv/bin/python"
+                validation_script_path = f"../validator.py"
+
+                os.chdir(self.env_name)
+            
+                print(f"[DEBUG] Current working directory: {os.getcwd()}")
+
+                
+                args = [venv_python_path, validation_script_path, filename,self.env_name,"1" if is_effect else "0"]
+         
+                if not is_effect:
+                    policy_name = extract_policy_name(source_text)
+                    args.append(policy_name)
+                else:
+                    args.append("0")
+
+                result = subprocess.run(
+                    args=args,
+                    capture_output=True,
+                    text=True
+                )
+
+                output = result.stdout.strip()
+                error_output = result.stderr.strip()
+                print(output)
+                print(error_output)
+                os.chdir("..")
+
+
+                animating = False
+                self.after(0, typing_bubble.destroy)
+                if "VALID" in output:
+                    self.add_chat_bubble(f"{target_type} passed validation!", sender="bot")
+                elif "ERROR" in output:
+                    print(output)
+                    self.add_chat_bubble(f"{target_type} validation failed:\n Refine Your {target_type}", sender="bot")
+                else:
+                    self.add_chat_bubble(f"⚠️ Unexpected validator output:\n{output or error_output}", sender="bot")
+
+            except Exception as e:
+                        animating = False
+                        self.after(0, typing_bubble.destroy)
+                        self.add_chat_bubble(f"Validation subprocess error:\n{e}", sender="bot")
+
+        threading.Thread(target=run_validation, daemon=True).start()
+from PIL import Image
+class SelectEnvironmentScreen(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("Choose Your Environment")
+        self.attributes("-fullscreen", True) 
+        self.configure(fg_color="#FFFDF0")
+        ctk.set_appearance_mode("light")
+        self.bind("<Escape>", lambda event: self.attributes("-fullscreen", False))  # Allow exiting fullscreen
+
+        title = ctk.CTkLabel(self, text="Choose an Environment", font=("Inter", 28, "bold"), text_color="#424242")
+        title.pack(pady=(30, 10))
+
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(expand=True, fill="both", padx=50, pady=20)
+
+        # Grid setup
+        container.grid_columnconfigure((0, 1), weight=1)
+
+        # Taxi
+        self._create_env_card(
+            parent=container,
+            column=0,
+            image_path="assets/taxi.png",
+            name="Taxi",
+            callback=lambda: self.launch_env("taxi")
+        )
+
+        # CliffWalking
+        self._create_env_card(
+            parent=container,
+            column=1,
+            image_path="assets/cliff.png",
+            name="Cliff Walking",
+            callback=lambda: self.launch_env("cliff_walking")
+        )
+
+    def _create_env_card(self, parent, column, image_path, name, callback):
+        frame = ctk.CTkFrame(parent, corner_radius=15, fg_color="#F4F4F4")
+        frame.grid(row=0, column=column, padx=20, pady=20, sticky="nsew")
+
+        # image = ctk.CTkImage(light_image=image_path, size=(220, 220))
+        img = Image.open(image_path)
+        image = ctk.CTkImage(light_image=img, size=(220, 220))
+        img_label = ctk.CTkLabel(frame, image=image, text="")
+        img_label.image = image
+        img_label.pack(pady=(10, 5))
+
+        label = ctk.CTkLabel(frame, text=name, font=("Inter", 22, "bold"), text_color="#333")
+        label.pack(pady=(5, 10))
+
+        button = ctk.CTkButton(
+            frame,
+            text=f"Use {name}",
+            fg_color="#FFD3B6",
+            text_color="#424242",
+            font=("Inter", 18, "bold"),
+            command=callback
+        )
+        button.pack(pady=(0, 15))
+
+    def launch_env(self, env_name):
+        self.destroy()
+        vocab_path = "vocab.json"
+
+
+        if env_name == "taxi":
+            env_defs = constants.environment_definitions_taxi
+            effect_agent = EffectAgent(constants.effect_prompt, constants.taxi_effect_fewshots, env_defs)
+            policy_agent = PolicyAgent(constants.policy_prompt, constants.taxi_policy_fewshots, env_defs, vocab=vocab_path)
+        else:  # cliff
+            env_defs = constants.environment_definitions_cliff_walking
+            effect_agent = EffectAgent(constants.effect_prompt, constants.cliff_walking_effect_fewshots, env_defs)
+            policy_agent = PolicyAgent(constants.policy_prompt, constants.cliff_walking_policy_fewshots, env_defs,vocab=vocab_path)
+
+        effect_agent.start_ollama_serve()
+
+        app = ChatApp(effect_agent, policy_agent, environment_constants=env_defs, vocab=vocab_path,env_name=env_name)
+        app.mainloop()
+        effect_agent.stop_ollama_serve()
 
 
 import customtkinter as ctk
@@ -430,17 +685,26 @@ class TrainingChatApp(ctk.CTk):
         threading.Thread(target=run_training, daemon=True).start()
 
 
-if __name__ == "__main__":
-    stage1 = EffectAgent(system_prompt=constants.effect_prompt, few_shots=constants.effect_fewshots, environment_definitions=constants.environment_definitions)
-    print(stage1)
-    stage2 = PolicyAgent(system_prompt=constants.policy_prompt, few_shots=constants.policy_fewshots, environment_definitions=constants.environment_definitions)
 
-    try:
-        stage1.start_ollama_serve()
-        app = ChatApp(stage1, stage2,environment_constants=constants.environment_definitions)
-        app.mainloop()
-    finally:
-        stage1.stop_ollama_serve()
-    # if __name__ == "__main__":
-    # app = TrainingChatApp()
-    # app.mainloop()
+      
+
+# if __name__ == "__main__":
+    
+
+#     stage1 = EffectAgent(system_prompt=constants.effect_prompt, few_shots=constants.effect_fewshots, environment_definitions=constants.environment_definitions)
+#     print(stage1)
+#     stage2 = PolicyAgent(system_prompt=constants.policy_prompt, few_shots=constants.policy_fewshots, environment_definitions=constants.environment_definitions_policy,vocab="./vocab.json")
+
+#     try:
+#         stage1.start_ollama_serve()
+#         app = ChatApp(stage1, stage2,environment_constants=constants.environment_definitions,vocab="vocab.json")
+#         app.mainloop()
+#     finally:
+#         stage1.stop_ollama_serve()
+#     # if __name__ == "__main__":
+#     # app = TrainingChatApp()
+#     # app.mainloop()
+
+if __name__ == "__main__":
+    app = SelectEnvironmentScreen()
+    app.mainloop()

@@ -1,0 +1,31 @@
+{
+  "domain": "cliff_walking",
+  "mdp_metadata": {
+    "state_space": {
+      "size": 2,
+      "dtype": "int"
+    },
+    "action_space": {
+      "shape": 1,
+      "dtype": "int"
+    }
+  },
+  "modules": [
+    {
+      "module_name": "grounding",
+      "file_name": "grounding.py"
+    }
+  ],
+  "vocabulary": {
+    "features": [
+      {
+        "name": "goal_x",
+        "grounding": "grounding.goal_x"
+      },
+      {
+        "name": "goal_y",
+        "grounding": "grounding.goal_y"
+      }
+    ]
+  }
+}

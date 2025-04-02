@@ -1,0 +1,24 @@
+Constant grid_height := 4
+Constant grid_width := 12
+Constant goal_loc := [11, 3]
+
+Factor agent_pos := S[0, 1]
+Factor x := agent_pos[0]
+Factor y := agent_pos[1]
+
+Proposition at_goal := agent_pos == goal_loc
+Proposition is_on_cliff := (y == 3) and (x >= 1) and (x <= 10)
+
+
+Action move_n := 0
+Action move_e := 1
+Action move_s := 2
+Action move_w := 3
+
+Effect main:
+   if at_goal:
+       Reward 0
+   elif is_on_cliff:
+       Reward -100
+   else:
+       Reward -1

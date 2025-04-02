@@ -1,4 +1,5 @@
-environment_definitions="""
+environment_definitions_taxi="""
+
 Constant passenger_locs := [[0, 0], [0, 4], [4, 0], [4, 3]]
 Constant destination_locs := [[0, 0], [0, 4], [4, 0], [4, 3]]
 
@@ -21,19 +22,32 @@ Action pick_up := 4
 Action drop_off := 5
         """
 
+environment_definitions_cliff_walking="""
+Constant grid_height := 4
+Constant grid_width := 12
+Constant goal_loc := [11, 3]
+
+Factor agent_pos := S[0, 1]
+Factor x := agent_pos[0]
+Factor y := agent_pos[1]
+
+Proposition at_goal := agent_pos == goal_loc
+Proposition is_on_cliff := (y == 3) and (x >= 1) and (x <= 10)
+
+
+Action move_n := 0
+Action move_e := 1
+Action move_s := 2
+Action move_w := 3
+        """
+
 
 effect_prompt="""Your task is to translate natural language advice to RLang effect, which is a prediction about the
 state of the world or the reward function. For each instance, we provide a piece of advice in natural language,
 a list of allowed primitives, and you should complete the instance by filling the missing effect function.
 Don’t use any primitive outside the provided primitive list."""
 
-policy_prompt="""
-Your task is to translate natural language advice to RLang policy, which is a direct function
-from states to actions. For each instance, we provide a piece of advice in natural language, a
-list of allowed primitives, and you should complete the instance by filling the missing policy
-function. Don’t use any primitive outside the provided primitive list.
-"""
-effect_fewshots=""""
+taxi_effect_fewshots=""""
 Advice = "Picking up the passenger updates their location."
 Primitives = [at_passenger, pick_up, carrying_passenger,passenger_location]
 Effect=
@@ -96,13 +110,23 @@ Effect main:
             S' -> S
 """
 
+policy_prompt="""
+Your task is to translate natural language advice to RLang policy, which is a direct function
+from states to actions. For each instance, we provide a piece of advice in natural language with the name of the policy, a
+list of allowed primitives, and you should complete the instance by filling the missing policy
+function. 
 
-policy_fewshots="""
+# Rules
+ - Don’t use any primitive outside the provided primitive list.
+ - Name the policy with the name provided in the advice strictly. If no name is given, name it 'main'.
+"""
 
-Advice = "If you are at the passenger's location, pick them up."
+taxi_policy_fewshots="""
+
+Advice = "If you are at the passenger's location, pick them up. Name the policy passenger_pickup"
 Primitives = [at_passenger, pick_up,carrying_passenger]
 Policy =
-Policy main:
+Policy passenger_pickup:
     if at_passenger and not carrying_passenger:
         Execute pick_up
 
@@ -113,10 +137,10 @@ Policy main:
     if at_destination and carrying_passenger:
         Execute drop_off
 
-Advice = "If you are carrying the passenger but not at the destination, move toward the destination."
+Advice = "If you are carrying the passenger but not at the destination, move toward the destination. Name this policy destination_policy"
 Primitives = ['move_n', 'move_s', 'move_e', 'move_w', carrying_passenger,at_destination,destination_x,destination_y,x,y]
 Policy =
-Policy main:
+Policy destination_policy:
     if carrying_passenger and at_destination:
         if x < destination_x:
             Execute move_e
@@ -127,10 +151,10 @@ Policy main:
         elif y > destination_y:
             Execute move_s
 
-Advice = "If you are not carrying the passenger, move toward their location."
+Advice = "If you are not carrying the passenger, move toward their location. I want this to be called carry"
 Primitives = ['move_n', 'move_s', 'move_e', 'move_w',passenger_x,passenger_y,x,y,carrying_passenger]
 Policy =
-Policy main:
+Policy carry:
     if not carrying_passenger:
         if x < passenger_x:
             Execute move_e
@@ -140,4 +164,80 @@ Policy main:
             Execute move_n
         elif y > passenger_y:
             Execute move_s
+"""
+
+
+cliff_walking_policy_fewshots = """
+
+Advice = "If you're at the bottom-left corner, move north to avoid falling. Name it climb_safely."
+Primitives = [x, y, move_n]
+Policy =
+Policy climb_safely:
+    if x == 0 and y == 3:
+        Execute move_n
+
+Advice = "If you're not at the goal, move toward the goal. Call this toward_goal."
+Primitives = [x, y, goal_x, goal_y, at_goal, move_n, move_s, move_e, move_w]
+Policy =
+Policy toward_goal:
+    if not at_goal:
+        if x < goal_x:
+            Execute move_e
+        elif x > goal_x:
+            Execute move_w
+        elif y < goal_y:
+            Execute move_s
+        elif y > goal_y:
+            Execute move_n
+
+Advice = "If you are on the cliff, try to go up. Call this escape_cliff."
+Primitives = [x, y, is_on_cliff, move_n]
+Policy =
+Policy escape_cliff:
+    if is_on_cliff:
+        Execute move_n
+
+
+"""
+
+
+cliff_walking_effect_fewshots = """
+
+Advice = "Prevent movement beyond grid boundaries."
+Primitives = [x, y, move_n, move_s, move_e, move_w, grid_width, grid_height]
+Effect =
+Effect main:
+    if y == 0 and A == move_n:
+        S' -> S
+    if y == grid_height - 1 and A == move_s:
+        S' -> S
+    if x == 0 and A == move_w:
+        S' -> S
+    if x == grid_width - 1 and A == move_e:
+        S' -> S
+
+Advice = "Reaching the goal gives no penalty or reward."
+Primitives = [at_goal]
+Effect =
+Effect main:
+    if at_goal:
+        Reward 0
+
+Advice = "Falling off the cliff results in a heavy penalty."
+Primitives = [is_on_cliff]
+Effect =
+Effect main:
+    if is_on_cliff:
+        Reward -100
+
+Advice = "Default movement has a small penalty"
+Primitives = [x, y, move_n, move_s, move_e, move_w, at_goal, is_on_cliff]
+Effect =
+Effect main:
+    if at_goal:
+        Reward 0
+    elif is_on_cliff:
+        Reward -100
+    else:
+        Reward -1
 """

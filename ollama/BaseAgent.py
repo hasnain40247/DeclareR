@@ -1,13 +1,16 @@
 import time
 import re
 import subprocess
+import json
 class BaseAgent:
-    def __init__(self,system_prompt,few_shots,environment_definitions, model="llama3:8b"):
+    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="llama3:8b"):
         self.model = model
         self.process = None  
         self.system_prompt=system_prompt
         self.environment_definitions=environment_definitions
         self.few_shots=few_shots
+        self.vocab_path = vocab
+
         self.primitives= self.extract_primitives()
         
     def extract_primitives(self):
@@ -26,6 +29,20 @@ class BaseAgent:
         action_pattern = re.compile(r"Action (\w+) :=")
         primitives.update(action_pattern.findall(self.environment_definitions))
 
+        if self.vocab_path:
+            try:
+                with open(self.vocab_path, "r") as f:
+                    vocab_data = json.load(f)
+                    features = vocab_data.get("vocabulary", {}).get("features", [])
+                    for feature in features:
+                        name = feature.get("name")
+                        if name:
+                            primitives.add(name)
+            except Exception as e:
+                print(f"[⚠️] Failed to parse vocab.json at {self.vocab_path}: {e}")
+
+        print("prims")
+        print(primitives)
         return f"[{', '.join(sorted(primitives))}]"
 
 
