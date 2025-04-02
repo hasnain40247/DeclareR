@@ -316,6 +316,120 @@ class ChatApp(ctk.CTk):
             command=self.destroy  # or reinitialize your app if needed
         )
         exit_button.grid(row=0, column=1, padx=(10,55),sticky="ew")
+
+
+
+
+import customtkinter as ctk
+import threading
+import subprocess
+import json
+
+class TrainingChatApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("Q-Learning Training Monitor")
+        self.geometry("800x400")
+        self.configure(fg_color="#FFFDF0")
+        ctk.set_appearance_mode("light")
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # Frame
+        self.main_frame = ctk.CTkFrame(self, corner_radius=15)
+        self.main_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+        self.main_frame.grid_columnconfigure(0, weight=1)
+
+        self.title_label = ctk.CTkLabel(
+            self.main_frame,
+            text="🚖 Q-Learning Training Progress",
+            font=("Inter", 24, "bold"),
+            text_color="#424242"
+        )
+        self.title_label.pack(pady=(10, 20))
+
+        # Progress bar
+        self.progress_bar = ctk.CTkProgressBar(self.main_frame, width=600)
+        self.progress_bar.set(0)
+        self.progress_bar.pack(pady=10)
+
+        # Status
+        self.status_label = ctk.CTkLabel(
+            self.main_frame,
+            text="Click 'Start Training' to begin...",
+            font=("Inter", 18),
+            text_color="#424242"
+        )
+        self.status_label.pack(pady=(10, 20))
+
+        # Button
+        self.train_button = ctk.CTkButton(
+            self.main_frame,
+            text="Start Training",
+            fg_color="#FFD3B6",
+            text_color="#424242",
+            font=("Inter", 20, "bold"),
+            height=50,
+            command=self.start_training
+        )
+        self.train_button.pack(pady=10)
+
+    def start_training(self):
+        self.train_button.configure(state="disabled")
+        self.status_label.configure(text="Initializing training...")
+
+        def run_training():
+            params = {
+                "episodes": 15000,
+                "use_knowledge": True,
+                "rlang_path": "./taxi.rlang",
+                "plot_path": "./plots/q_learning_with_knowledge.png"
+            }
+
+            process = subprocess.Popen(
+                ["/Library/Frameworks/Python.framework/Versions/3.7/bin/python3", "run_agent.py"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd="<path_to_script_directory>",
+                bufsize=1,
+                universal_newlines=True
+            )
+
+            process.stdin.write(json.dumps(params))
+            process.stdin.flush()
+            process.stdin.close()
+
+            for line in process.stdout:
+                try:
+                    update = json.loads(line.strip())
+                    if update.get("done"):
+                        self.status_label.configure(
+                            text=f"✅ Training complete!\nAverage Test Reward: {update['final_avg_reward']:.2f}"
+                        )
+                        self.progress_bar.set(1.0)
+                        break
+
+                    ep = update["episode"]
+                    avg_r = update["avg_reward"]
+                    progress = ep / params["episodes"]
+                    self.progress_bar.set(progress)
+                    self.status_label.configure(
+                        text=f"Episode {ep}/{params['episodes']} | Avg Reward (last 100): {avg_r:.2f}"
+                    )
+                    self.update_idletasks()
+
+                except Exception as e:
+                    print("Error:", e, line)
+
+            process.stdout.close()
+            process.wait()
+
+        threading.Thread(target=run_training, daemon=True).start()
+
+
 if __name__ == "__main__":
     stage1 = EffectAgent(system_prompt=constants.effect_prompt, few_shots=constants.effect_fewshots, environment_definitions=constants.environment_definitions)
     print(stage1)
@@ -327,3 +441,6 @@ if __name__ == "__main__":
         app.mainloop()
     finally:
         stage1.stop_ollama_serve()
+    # if __name__ == "__main__":
+    # app = TrainingChatApp()
+    # app.mainloop()
