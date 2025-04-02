@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use = lambda *args, **kwargs: None
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -7,9 +10,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
 import pandas as pd
 import gym
+import rlang
 import graphviz
 from sklearn.tree import export_graphviz
 import scipy.special
+from q_learning import RLangQLearningAgent
 
 class GetExplainabilityPlotsForEnv:
     
@@ -39,9 +44,7 @@ class GetExplainabilityPlotsForEnv:
             4: "P",  # Pickup
             5: "D"   # Dropoff
         }
-        
-        self.action_list = ["South", "North", "East", "West", "Pickup", "Dropoff"]
-        
+                
         # Initialize and train models
         self.dt_model = DecisionTreeClassifier(max_depth=10, min_samples_split=4, random_state=21)
         self.log_reg_model = LogisticRegression(max_iter=1000)
@@ -112,12 +115,12 @@ class GetExplainabilityPlotsForEnv:
 
         plt.figure(figsize=(10, 3))
         plt.step(range(len(actions)), actions, where='mid', linestyle='-', marker='o', color='r')
-        plt.yticks(range(self.action_dim), self.action_list)
+        plt.yticks(range(self.action_dim), self.action_labels)
         plt.xlabel("Time Step")
         plt.ylabel("Action")
         plt.title("Action Trajectory Over Time")
         plt.grid()
-        plt.savefig("plots/trajectory_plot_actions.png")
+        plt.savefig("plots/episode_action_trajectory.png")
         plt.close()
 
     def plot_trajectory_state_visits(self, trajectory):
@@ -132,7 +135,7 @@ class GetExplainabilityPlotsForEnv:
         plt.title("State Visit Heatmap")
         plt.xlabel("Taxi Column")
         plt.ylabel("Taxi Row")
-        plt.savefig("plots/trajectory_state_visits.png")
+        plt.savefig("plots/episode_statevisits_trajectory.png")
         plt.close()
 
     def plot_trajectory_rewards(self, trajectory):
@@ -144,7 +147,7 @@ class GetExplainabilityPlotsForEnv:
         plt.ylabel("Reward")
         plt.title("Reward Trajectory Over Time")
         plt.grid()
-        plt.savefig("plots/trajectory_rewards.png")
+        plt.savefig("plots/episode_rewards_trajectory.png")
         plt.close()
 
     def visualize_policy(self):
@@ -167,7 +170,7 @@ class GetExplainabilityPlotsForEnv:
 
         plt.title("Policy Visualization")
         plt.axis('off')
-        plt.savefig("plots/qlearning_policy.png")
+        plt.savefig("plots/taxi_policy.png")
         plt.close()
 
     def plot_feature_importance(self):
@@ -180,7 +183,7 @@ class GetExplainabilityPlotsForEnv:
         plt.xlabel("Features")
         plt.ylabel("Importance")
         plt.title("Feature Importance from Decision Tree")
-        plt.savefig("plots/feature_importance_from_decision_tree.png")
+        plt.savefig("plots/feature_importance_decision_tree.png")
         plt.close()
 
     def shap_summary_plot(self):
@@ -189,6 +192,7 @@ class GetExplainabilityPlotsForEnv:
         shap_values = explainer.shap_values(self.X_train)
 
         shap.summary_plot(shap_values, self.X_train, feature_names=["taxi_row", "taxi_col", "passenger_loc", "destination"], class_names=self.action_labels)
+
     
     def get_state_representation(self, state_index):
         taxi_row, taxi_col, passenger_loc, destination = self.env.decode(state_index)
@@ -286,7 +290,6 @@ class LimeExplainer:
             5: "Dropoff"
         }
 
-
     def softmax_with_temperature(self, x, temperature=0.5):
         """Softmax with temperature scaling."""
         exp_values = np.exp(x / temperature)
@@ -338,13 +341,27 @@ class LimeExplainer:
 
         return explanations
 
+    def save_lime_explanations(self, explanations, state_to_explain):
+        """Save LIME explanations as images in the 'plots' folder."""
+        
+        for action in range(self.action_dim):
+            # Get the LIME explanation figure
+            fig = explanations[action].as_pyplot_figure()
+            
+            # Generate a filename using the state and action
+            filename = f"plots/lime_explanation_state_{state_to_explain}_action_{action}_{self.action_symbols[action]}.png"
+            
+            # Save the figure
+            fig.savefig(filename)
+            plt.close(fig)  # Close the figure after saving to free up memory
+            print(f"Saved explanation for action '{self.action_symbols[action]}' for state {state_to_explain} as {filename}")
+
     def print_lime_explanations(self, explanations):
         """Print the LIME explanations."""
         
         for action in range(self.action_dim):
             print(f"Explanation for Action {action} ({self.action_symbols[action]}):")
             explanations[action].show_in_notebook()
-
 
 
 def get_policy(env, Q_table):
@@ -362,41 +379,66 @@ def get_policy(env, Q_table):
 
     return policy, states, actions
 
+def convert_q_table(agent):
+    state_size = agent.env.observation_space.n
+    action_size = agent.env.action_space.n
+    
+    Q_table = np.zeros((state_size, action_size))
+    
+    for state in range(state_size):
+        for action in range(action_size):
+            Q_table[state, action] = agent.q_table[state][action]
+    
+    return Q_table
 
-# How to call the above functions
 
-# Keep taxi gym env and Q_table ready
 
-policy, states, actions = get_policy(env, Q_table)
-explainability = GetExplainabilityPlotsForEnv(env, Q_table, policy, states, actions)
 
-explainability.visualize_policy()
-explainability.visualize_decision_tree()
-explainability.plot_feature_importance()
-explainability.shap_summary_plot()
-explainability.plot_probability_heatmap()
-explainability.plot_logisticregression_probability_heatmap()
+if __name__ == '__main__':
+    
+    env = gym.make("Taxi-v3")
+    np.set_printoptions(threshold=np.inf) 
 
-trajectory = explainability.run_episode(Q_table, env)
+    knowledge = rlang.parse_file("./taxi.rlang")
+    agent_with_policy = RLangQLearningAgent(env, knowledge=knowledge)
+    rewards_with_policy = agent_with_policy.train(episodes=15000)
+    
+    Q_table = convert_q_table(agent_with_policy)
 
-explainability.plot_action_trajectory(trajectory)
-explainability.plot_trajectory_state_visits(trajectory)
-explainability.plot_trajectory_rewards(trajectory)
+    policy, states, actions = get_policy(env, Q_table)
+    explainability = GetExplainabilityPlotsForEnv(env, Q_table, policy, states, actions)
 
-lime_explainer = LimeExplainer(env, Q_table)
+    explainability.visualize_policy()
+    explainability.visualize_decision_tree()
+    explainability.plot_feature_importance()
+    
+    explainability.shap_summary_plot()
+    
+    explainability.plot_probability_heatmap()
+    explainability.plot_logisticregression_probability_heatmap()
 
-explanations = lime_explainer.generate_lime_explanations(state_to_explain=62)
+    trajectory = explainability.run_episode(Q_table, env)
 
-lime_explainer.print_lime_explanations(explanations)
+    explainability.plot_action_trajectory(trajectory)
+    explainability.plot_trajectory_state_visits(trajectory)
+    explainability.plot_trajectory_rewards(trajectory)
 
-""" 
-Lime plot might mean something like:
+    lime_explainer = LimeExplainer(env, Q_table)
 
-taxi_row = 0.11 (not south) suggests that a higher taxi_row makes "South" less likely. For example, if the taxi is higher up in the grid (in a higher row), "South" is less likely to be chosen.
+    explanations = lime_explainer.generate_lime_explanations(state_to_explain=62)
 
-passenger = 0.08 (south) suggests that having a passenger (or a certain state of the passenger) increases the likelihood of choosing "South".
+    lime_explainer.save_lime_explanations(explanations, state_to_explain=62)
+    lime_explainer.print_lime_explanations(explanations)
 
-taxi_col = 0.04 (not south) suggests that taxi_col has a small negative impact on choosing "South".
 
-destination = 0.03 (not south) suggests that the destination feature also has a small negative impact on choosing "South
-"""
+    """ 
+    Lime plot might mean something like:
+
+    taxi_row = 0.11 (not south) suggests that a higher taxi_row makes "South" less likely. For example, if the taxi is higher up in the grid (in a higher row), "South" is less likely to be chosen.
+
+    passenger = 0.08 (south) suggests that having a passenger (or a certain state of the passenger) increases the likelihood of choosing "South".
+
+    taxi_col = 0.04 (not south) suggests that taxi_col has a small negative impact on choosing "South".
+
+    destination = 0.03 (not south) suggests that the destination feature also has a small negative impact on choosing "South
+    """
