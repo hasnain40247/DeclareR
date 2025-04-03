@@ -294,7 +294,7 @@ class EnvRenderer(ctk.CTkFrame):
             self.process.wait()
             print(os.getcwd())
            
-            with open(f"./training_details2.json","r") as f:
+            with open(f"./training_details.json","r") as f:
                 self.q_table=json.load(f)[-1]["q_table"]
       
             os.chdir("..")
