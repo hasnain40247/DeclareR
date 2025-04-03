@@ -98,8 +98,8 @@ class RLangValidator:
         if algorithm=="R-Max":
             rewards = agent.train(episodes=100)
         else:
-            # rewards = agent.train(episodes=15000)
-            rewards = agent.train(episodes=10)
+            rewards = agent.train(episodes=15000)
+            # rewards = agent.train(episodes=10)
 
 
 
