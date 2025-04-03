@@ -12,16 +12,20 @@ import matplotlib.pyplot as plt
 import pygame
 import os  # To force quit Pygame if needed
 from utils import plot_training_rewards, plot_comparison_training_rewards
-
+import json
 class RLangQLearningAgent:
-    def __init__(self, env, knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
+    def __init__(self, env,env_name, knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
         self.env = env
+        self.env_name = env_name
+
         self.alpha = alpha  
         self.gamma = gamma 
         self.epsilon = epsilon  
         self.epsilon_decay = epsilon_decay 
         self.q_table = defaultdict(lambda: defaultdict(lambda: 0))
         self.knowledge = knowledge
+        self.training_details = []  
+
     
     def state_to_vector(self, state):
         width = self.env.unwrapped.shape[1]
@@ -53,7 +57,7 @@ class RLangQLearningAgent:
                             v_s_prime = self.weighted_value(self.q_table, s_prime_dist, actions)
                             self.q_table[s][a] += self.alpha * (r_prime + self.gamma * v_s_prime)
                             
-    def train(self, episodes):
+    def train(self, episodes,reward_callback=None):
         states = range(self.env.observation_space.n)
         actions = range(self.env.action_space.n)
         if self.knowledge:
@@ -65,6 +69,13 @@ class RLangQLearningAgent:
         for i in tqdm(range(episodes)):
             state = self.env.reset()[0]
             terminated, truncated, rewards = False, False, 0
+            episode_details = {
+                'episode': i,
+                'states': [],
+                'actions': [],
+                'q_table': self.q_table
+            }
+
             
             while not (terminated or truncated):
                 if rng.random() < self.epsilon:
@@ -74,17 +85,29 @@ class RLangQLearningAgent:
                 
                 new_state, reward, terminated, truncated, _ = self.env.step(action)
                 rewards += reward
+                episode_details['states'].append(int(state))
+                episode_details['actions'].append(int(action))
                 
                 max_q = max(self.q_table[new_state].values(), default=0)
-                self.q_table[state][action] += self.alpha * (reward + self.gamma * max_q - self.q_table[state][action])
+                self.q_table[int(state)][int(action)] += self.alpha * (reward + self.gamma * max_q - self.q_table[state][action])
                 state = new_state
                 
             self.epsilon = max(self.epsilon - self.epsilon_decay, 0)
             self.alpha = 0.0001 if self.epsilon == 0 else self.alpha
             rewards_per_episode[i] = rewards
+            self.training_details.append(episode_details)
+
+            print(f"Episode {i}: Total Reward: {rewards}")  # This will be captured by the subprocess
             
+            if reward_callback:
+                reward_callback(rewards)  # Call the callback for episodic rewards
+
       
         self.env.close()
+
+
+        with open(f"../ollama/{self.env_name}/training_details.json", "w") as f:
+            json.dump(self.training_details, f)
         
 
         return rewards_per_episode
@@ -122,21 +145,25 @@ class RLangQLearningAgent:
     
 if __name__ == '__main__':
     env = gym.make("CliffWalking-v0")
-    np.set_printoptions(threshold=np.inf) 
+    # agent = RLangQLearningAgent(env,env_name="cliff_walking")
+    # rewards = agent.train(episodes=10000)
+    # np.set_printoptions(threshold=np.inf) 
 
     knowledge = rlang.parse_file("./cliff_walking.rlang")
-    agent_with_policy = RLangQLearningAgent(env, knowledge=knowledge,epsilon=1,epsilon_decay=0.02)
+    print("knowledge")
+    print(knowledge)
+    agent_with_policy = RLangQLearningAgent(env,env_name="cliff_walking", knowledge=knowledge,epsilon=1,epsilon_decay=0.02)
     rewards_with_policy = agent_with_policy.train(episodes=100)
-    print(f"Training complete. Average reward: {agent_with_policy.test(10)}")
-    agent = RLangQLearningAgent(env)
-    rewards = agent.train(episodes=100)
-    print(f"Training complete. Average reward: {agent.test(10)}")
-    plot_training_rewards(rewards_with_policy,save_path="./plots/q_learning_training_rewards_knowledge.png")
-    plot_training_rewards(rewards,save_path="./plots/q_learning_training_rewards.png")
-    plot_comparison_training_rewards(
-        reward_dict={
-            "With RLang Policy": rewards_with_policy,
-            "Without RLang": rewards
-        },
-        save_path="./plots/q_learning_comparison.png"
-    )
+    # print(f"Training complete. Average reward: {agent_with_policy.test(10)}")
+    # agent = RLangQLearningAgent(env)
+    # rewards = agent.train(episodes=100)
+    # print(f"Training complete. Average reward: {agent.test(10)}")
+    # plot_training_rewards(rewards_with_policy,save_path="./plots/q_learning_training_rewards_knowledge.png")
+    # plot_training_rewards(rewards,save_path="./plots/q_learning_training_rewards.png")
+    # plot_comparison_training_rewards(
+    #     reward_dict={
+    #         "With RLang Policy": rewards_with_policy,
+    #         "Without RLang": rewards
+    #     },
+    #     save_path="./plots/q_learning_comparison.png"
+    # )
