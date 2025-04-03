@@ -86,6 +86,7 @@ class RLangValidator:
 
         if self.knowledge is not None and os.path.exists(self.knowledge):
             self.knowledge = rlang.parse_file(self.knowledge.split("/")[-1])
+            print(self.knowledge)
             self.log("Knowledge loaded from:", self.rlang_file)
 
         # Instantiate and run training
