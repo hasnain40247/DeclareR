@@ -1,3 +1,4 @@
+import "vocab.json"
 Constant grid_height := 4
 Constant grid_width := 12
 Constant goal_loc := [11, 3]
@@ -15,6 +16,6 @@ Action move_e := 1
 Action move_s := 2
 Action move_w := 3
 
-Effect main:
-   if at_goal:
-       Reward 0
+Policy climb_safely:
+ if agent_pos[0] == 0 and agent_pos[1] == 3:
+    Execute move_n
