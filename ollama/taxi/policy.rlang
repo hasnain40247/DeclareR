@@ -22,11 +22,11 @@ Action drop_off := 5
 
 Policy destination_policy:
  if carrying_passenger and not at_destination:
-      if x < destination_x:
-          Execute move_e
-      elif x > destination_x:
-          Execute move_w
-      elif y < destination_y:
-          Execute move_n
-      elif y > destination_y:
-          Execute move_s
+    if x < destination_x:
+        Execute move_e
+    elif x > destination_x:
+        Execute move_w
+    elif y < destination_y:
+        Execute move_n
+    elif y > destination_y:
+        Execute move_s

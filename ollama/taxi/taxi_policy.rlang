@@ -24,17 +24,19 @@ Action drop_off := 5
         
 Effect main:
    if carrying_passenger and A == drop_off:
-       if not at_destination:
+       if at_destination:
+           Reward 20
+       else:
            Reward -10
 
 
-Here is the revised policy:
-
 Policy destination_policy:
-    if carrying_passenger and not at_destination:
-        if x - passenger_location_x > 0:
-            Execute move_e
-        elif x - passenger_location_x < 0:
-            Execute move_w
-        else:
-            Execute move_n if y < passenger_location_y else move_s
+ if carrying_passenger and not at_destination:
+    if x < destination_x:
+        Execute move_e
+    elif x > destination_x:
+        Execute move_w
+    elif y < destination_y:
+        Execute move_n
+    elif y > destination_y:
+        Execute move_s

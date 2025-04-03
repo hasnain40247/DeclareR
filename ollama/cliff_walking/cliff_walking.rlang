@@ -1,0 +1,54 @@
+import "vocab.json"
+
+Constant grid_height := 4
+Constant grid_width := 12
+Constant goal_loc := [11, 3]
+
+Factor agent_pos := S[0, 1]
+Factor x := agent_pos[0]
+Factor y := agent_pos[1]
+
+Proposition at_goal := agent_pos == goal_loc
+Proposition is_on_cliff := (y == 3) and (x >= 1) and (x <= 10)
+
+
+Action move_n := 0
+Action move_e := 1
+Action move_s := 2
+Action move_w := 3
+
+Effect movement_effect:
+    if y == 0 and A == move_n:
+        S' -> S
+    if y == grid_height - 1 and A == move_s:
+        S' -> S
+    if x == 0 and A == move_w:
+        S' -> S
+    if x == grid_width - 1 and A == move_e:
+        S' -> S
+
+Effect reward_effect:
+    if at_goal:
+        Reward 0
+    elif is_on_cliff:
+        Reward -100
+    else:
+        Reward -1
+
+Effect main:
+    -> movement_effect
+    -> reward_effect
+
+
+Policy cliff_policy:
+    if not at_goal:
+        if x == 0 and y == 3:
+            Execute move_n
+        elif x < goal_x:
+            Execute move_e
+        elif x > goal_x:
+            Execute move_w
+        elif y < goal_y:
+            Execute move_s
+        elif y > goal_y:
+            Execute move_n
