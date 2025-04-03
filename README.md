@@ -12,10 +12,10 @@ Install from the wheel located in root with
  
  Further instructions regarding Rlang can be found [here](http://rlang.ai/master/tutorial.html#installing-rlang).
  
-To run the interpreatability plots, ensure that the following libraries are installed:
+To run the interpreatability plots, ensure that the following libraries are installed, specific version of shap, lime, sklearn is needed as provided in requirements.txt:
 
 ```bash
-pip install matplotlib seaborn shap lime graphviz gym pandas scikit-learn
+pip install -r requirements.txt
 ```
 
 ## Project Structure
