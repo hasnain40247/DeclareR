@@ -1,3 +1,6 @@
+import "vocab.json"
+
+
 Constant passenger_locs := [[0, 0], [0, 4], [4, 0], [4, 3]]
 Constant destination_locs := [[0, 0], [0, 4], [4, 0], [4, 3]]
 
@@ -18,9 +21,13 @@ Action move_e := 2
 Action move_w := 3
 Action pick_up := 4
 Action drop_off := 5
-
+        
 Effect main:
     if (A == pick_up or A == drop_off) and not at_destination:
         Reward -10
     else:
         Reward 0
+
+Policy main:
+    if at_destination and carrying_passenger:
+        Execute drop_off

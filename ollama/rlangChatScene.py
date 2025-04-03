@@ -1,18 +1,15 @@
-import time
 import customtkinter as ctk
 import threading
-import constants
-from EffectAgent import EffectAgent
-from PolicyAgent import PolicyAgent
-import re
 import os
-
-
+import subprocess
+import re
+from trainerRoot import MainApplication
 def extract_policy_name(policy_text):
     match = re.search(r"Policy\s+(\w+):", policy_text)
     return match.group(1) if match else "unknown_policy"
 
-class ChatApp(ctk.CTk):
+
+class RLangChatScene(ctk.CTk):
     def __init__(self,effect_agent, policy_agent, environment_constants, vocab=None,env_name="taxi"):
         super().__init__()
         self.generated_effect_history = [] 
@@ -128,35 +125,12 @@ class ChatApp(ctk.CTk):
             command=self.toggle_mode
         )
         self.toggle_button.grid(row=2, column=0,pady=10, padx=(40,10), sticky="ew")
-        # self.validate = ctk.CTkButton(
-        #         self,
-        #         text="Save",
-        #         fg_color="#D9DFC6",
-        #         hover=False,
-        #         text_color="#424242",
-        #         font=("Inter", 20, "bold"),
-        #         height=60,
-        #         command=self.validate_effect
-
-        #     )
-        # self.validate.grid(row=2, column=1,pady=10, padx=(10,40))
-
-        # self.compile_button = ctk.CTkButton(
-        #     self,
-        #     text="Save",
-        #     fg_color="#D9DFC6",
-        #     hover=False,
-        #     text_color="#424242",
-        #     font=("Inter", 20, "bold"),
-        #     height=60,
-        #     command=self.compile_to_file
-        # )
-        # self.compile_button.grid(row=2, column=1,pady=10, padx=(10,40))
+        
         self.controls_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.controls_frame.grid(row=2, column=1, padx=(10, 40), pady=10, sticky="ew")
         self.controls_frame.grid_columnconfigure((0, 1), weight=1)  # two equal columns
 
-        # ✅ Validate Button
+
         self.validate_button = ctk.CTkButton(
             self.controls_frame,
             text="Validate",
@@ -169,7 +143,7 @@ class ChatApp(ctk.CTk):
         )
         self.validate_button.grid(row=0, column=0, padx=(0, 5), sticky="ew")
 
-        # ✅ Compile Button
+
         self.compile_button = ctk.CTkButton(
             self.controls_frame,
             text="Save",
@@ -197,7 +171,7 @@ class ChatApp(ctk.CTk):
         bubble.pack(anchor=text_align, pady=10, padx=40)
 
 
-        # self.chat_frame._parent_canvas.yview_moveto(1)
+
         self.after(100, lambda: self.chat_frame._parent_canvas.yview_moveto(1))
 
     def generate_output(self):
@@ -223,17 +197,6 @@ class ChatApp(ctk.CTk):
 
         def fetch_output():
   
-            # for _ in range(3): 
-            #     time.sleep(0.5)
-            #     typing_bubble.configure(text="Generating" + "." * (_ % 3 + 1))
-            #     self.update_idletasks()
-
-     
-            # if self.is_generating_effect:
-            #         stream = self.effect_agent.generate_effect_stream(user_text)
-            # else:
-            #         stream = self.policy_agent.generate_policy_stream(user_text)
-
             if self.is_generating_effect:
             
                 if not self.generated_effect_history:
@@ -280,10 +243,8 @@ class ChatApp(ctk.CTk):
             new_color = "#FFD3B6"
             mode="Switch To Policy Mode"
             border_color="#FFD3B6"
-
            
         else:
-           
             new_color = "#EFF3EA" 
             mode="Switch To Effect Mode"
             border_color="#D9DFC6"
@@ -299,9 +260,7 @@ class ChatApp(ctk.CTk):
             text=mode
             
         )
-        # self.user_input.configure(
-        #     placeholder_text=f"Describe your {mode_text}..."
-        # )
+     
         self.user_input.delete(0, "end") 
         self.user_input.focus()
         self.user_input.update()
@@ -314,12 +273,12 @@ class ChatApp(ctk.CTk):
 
     def compile_to_file(self):
         """Compiles the generated effect and policy into a text file."""
-        # if not self.effect_text or not self.policy_text:
-        #     self.add_chat_bubble("Both Effect and Policy must be generated before compiling!", sender="bot")
-        #     return
+        if not self.effect_text or not self.policy_text:
+            self.add_chat_bubble("Both Effect and Policy must be generated before compiling!", sender="bot")
+            return
 
         file_content =f'import "{self.vocab}"'+f"\n{self.environment_constants}\n{self.effect_text}\n\n{self.policy_text}"
-        file_path = f"./{self.env_name}/{self.env_name}_policy.rlang"
+        file_path = f"./{self.env_name}/{self.env_name}_policy_generated.rlang"
 
         with open(file_path, "w") as file:
             file.write(file_content)
@@ -328,7 +287,7 @@ class ChatApp(ctk.CTk):
             widget.destroy()
 
 
-        # Configure root grid
+
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(0, weight=1)
@@ -342,7 +301,7 @@ class ChatApp(ctk.CTk):
         preview_frame.grid_rowconfigure(0, weight=1)
         preview_frame.grid_columnconfigure(0, weight=1)
 
-        # Load and insert file content into editable textbox
+
         with open(file_path, "r") as file:
             content = file.read()
 
@@ -366,6 +325,10 @@ class ChatApp(ctk.CTk):
             with open(file_path, "w") as file:
                 file.write(updated_content)
             preview_textbox.configure(border_color="#A2D5AB") 
+            self.destroy()  # Close the current window
+
+            app = MainApplication(env_name=self.env_name)
+            app.mainloop()  
 
 
         controls_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -398,7 +361,7 @@ class ChatApp(ctk.CTk):
             height=60,
             hover=False,
             corner_radius=10,
-            command=self.destroy  # or reinitialize your app if needed
+            command=self.destroy 
         )
         exit_button.grid(row=0, column=1, padx=(10,55),sticky="ew")
 
@@ -493,218 +456,3 @@ class ChatApp(ctk.CTk):
                         self.add_chat_bubble(f"Validation subprocess error:\n{e}", sender="bot")
 
         threading.Thread(target=run_validation, daemon=True).start()
-from PIL import Image
-class SelectEnvironmentScreen(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("Choose Your Environment")
-        self.attributes("-fullscreen", True) 
-        self.configure(fg_color="#FFFDF0")
-        ctk.set_appearance_mode("light")
-        self.bind("<Escape>", lambda event: self.attributes("-fullscreen", False))  # Allow exiting fullscreen
-
-        title = ctk.CTkLabel(self, text="Choose an Environment", font=("Inter", 28, "bold"), text_color="#424242")
-        title.pack(pady=(30, 10))
-
-        container = ctk.CTkFrame(self, fg_color="transparent")
-        container.pack(expand=True, fill="both", padx=50, pady=20)
-
-        # Grid setup
-        container.grid_columnconfigure((0, 1), weight=1)
-
-        # Taxi
-        self._create_env_card(
-            parent=container,
-            column=0,
-            image_path="assets/taxi.png",
-            name="Taxi",
-            callback=lambda: self.launch_env("taxi")
-        )
-
-        # CliffWalking
-        self._create_env_card(
-            parent=container,
-            column=1,
-            image_path="assets/cliff.png",
-            name="Cliff Walking",
-            callback=lambda: self.launch_env("cliff_walking")
-        )
-
-    def _create_env_card(self, parent, column, image_path, name, callback):
-        frame = ctk.CTkFrame(parent, corner_radius=15, fg_color="#F4F4F4")
-        frame.grid(row=0, column=column, padx=20, pady=20, sticky="nsew")
-
-        # image = ctk.CTkImage(light_image=image_path, size=(220, 220))
-        img = Image.open(image_path)
-        image = ctk.CTkImage(light_image=img, size=(220, 220))
-        img_label = ctk.CTkLabel(frame, image=image, text="")
-        img_label.image = image
-        img_label.pack(pady=(10, 5))
-
-        label = ctk.CTkLabel(frame, text=name, font=("Inter", 22, "bold"), text_color="#333")
-        label.pack(pady=(5, 10))
-
-        button = ctk.CTkButton(
-            frame,
-            text=f"Use {name}",
-            fg_color="#FFD3B6",
-            text_color="#424242",
-            font=("Inter", 18, "bold"),
-            command=callback
-        )
-        button.pack(pady=(0, 15))
-
-    def launch_env(self, env_name):
-        self.destroy()
-        vocab_path = "vocab.json"
-
-
-        if env_name == "taxi":
-            env_defs = constants.environment_definitions_taxi
-            effect_agent = EffectAgent(constants.effect_prompt, constants.taxi_effect_fewshots, env_defs)
-            policy_agent = PolicyAgent(constants.policy_prompt, constants.taxi_policy_fewshots, env_defs, vocab=vocab_path)
-        else:  # cliff
-            env_defs = constants.environment_definitions_cliff_walking
-            effect_agent = EffectAgent(constants.effect_prompt, constants.cliff_walking_effect_fewshots, env_defs)
-            policy_agent = PolicyAgent(constants.policy_prompt, constants.cliff_walking_policy_fewshots, env_defs,vocab=vocab_path)
-
-        effect_agent.start_ollama_serve()
-
-        app = ChatApp(effect_agent, policy_agent, environment_constants=env_defs, vocab=vocab_path,env_name=env_name)
-        app.mainloop()
-        effect_agent.stop_ollama_serve()
-
-
-import customtkinter as ctk
-import threading
-import subprocess
-import json
-
-class TrainingChatApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-
-        self.title("Q-Learning Training Monitor")
-        self.geometry("800x400")
-        self.configure(fg_color="#FFFDF0")
-        ctk.set_appearance_mode("light")
-
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-
-        # Frame
-        self.main_frame = ctk.CTkFrame(self, corner_radius=15)
-        self.main_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
-        self.main_frame.grid_columnconfigure(0, weight=1)
-
-        self.title_label = ctk.CTkLabel(
-            self.main_frame,
-            text="🚖 Q-Learning Training Progress",
-            font=("Inter", 24, "bold"),
-            text_color="#424242"
-        )
-        self.title_label.pack(pady=(10, 20))
-
-        # Progress bar
-        self.progress_bar = ctk.CTkProgressBar(self.main_frame, width=600)
-        self.progress_bar.set(0)
-        self.progress_bar.pack(pady=10)
-
-        # Status
-        self.status_label = ctk.CTkLabel(
-            self.main_frame,
-            text="Click 'Start Training' to begin...",
-            font=("Inter", 18),
-            text_color="#424242"
-        )
-        self.status_label.pack(pady=(10, 20))
-
-        # Button
-        self.train_button = ctk.CTkButton(
-            self.main_frame,
-            text="Start Training",
-            fg_color="#FFD3B6",
-            text_color="#424242",
-            font=("Inter", 20, "bold"),
-            height=50,
-            command=self.start_training
-        )
-        self.train_button.pack(pady=10)
-
-    def start_training(self):
-        self.train_button.configure(state="disabled")
-        self.status_label.configure(text="Initializing training...")
-
-        def run_training():
-            params = {
-                "episodes": 15000,
-                "use_knowledge": True,
-                "rlang_path": "./taxi.rlang",
-                "plot_path": "./plots/q_learning_with_knowledge.png"
-            }
-
-            process = subprocess.Popen(
-                ["/Library/Frameworks/Python.framework/Versions/3.7/bin/python3", "run_agent.py"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd="<path_to_script_directory>",
-                bufsize=1,
-                universal_newlines=True
-            )
-
-            process.stdin.write(json.dumps(params))
-            process.stdin.flush()
-            process.stdin.close()
-
-            for line in process.stdout:
-                try:
-                    update = json.loads(line.strip())
-                    if update.get("done"):
-                        self.status_label.configure(
-                            text=f"✅ Training complete!\nAverage Test Reward: {update['final_avg_reward']:.2f}"
-                        )
-                        self.progress_bar.set(1.0)
-                        break
-
-                    ep = update["episode"]
-                    avg_r = update["avg_reward"]
-                    progress = ep / params["episodes"]
-                    self.progress_bar.set(progress)
-                    self.status_label.configure(
-                        text=f"Episode {ep}/{params['episodes']} | Avg Reward (last 100): {avg_r:.2f}"
-                    )
-                    self.update_idletasks()
-
-                except Exception as e:
-                    print("Error:", e, line)
-
-            process.stdout.close()
-            process.wait()
-
-        threading.Thread(target=run_training, daemon=True).start()
-
-
-
-      
-
-# if __name__ == "__main__":
-    
-
-#     stage1 = EffectAgent(system_prompt=constants.effect_prompt, few_shots=constants.effect_fewshots, environment_definitions=constants.environment_definitions)
-#     print(stage1)
-#     stage2 = PolicyAgent(system_prompt=constants.policy_prompt, few_shots=constants.policy_fewshots, environment_definitions=constants.environment_definitions_policy,vocab="./vocab.json")
-
-#     try:
-#         stage1.start_ollama_serve()
-#         app = ChatApp(stage1, stage2,environment_constants=constants.environment_definitions,vocab="vocab.json")
-#         app.mainloop()
-#     finally:
-#         stage1.stop_ollama_serve()
-#     # if __name__ == "__main__":
-#     # app = TrainingChatApp()
-#     # app.mainloop()
-
-if __name__ == "__main__":
-    app = SelectEnvironmentScreen()
-    app.mainloop()

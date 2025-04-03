@@ -1,14 +1,14 @@
 import ollama
-from BaseAgent import BaseAgent
+from llm_agents.BaseAgent import BaseAgent
 
 
 # modesl tried
 # llama3:8b
-#
+# gemma3:12b
 
 
 class EffectAgent(BaseAgent):
-    def __init__(self,system_prompt,few_shots,environment_definitions,vocab=None, model="gemma3:12b"):
+    def __init__(self,system_prompt,few_shots,environment_definitions,vocab=None, model="llama3:8b"):
         super().__init__(system_prompt,few_shots,environment_definitions,vocab=vocab, model=model)
 
     def generate_effect(self, user_input):

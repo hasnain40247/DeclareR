@@ -1,4 +1,5 @@
 import "vocab.json"
+
 Constant grid_height := 4
 Constant grid_width := 12
 Constant goal_loc := [11, 3]
@@ -15,6 +16,16 @@ Action move_n := 0
 Action move_e := 1
 Action move_s := 2
 Action move_w := 3
+        
+Effect main:
+    if A == move_e and x == grid_width - 1:
+        S' -> S
+    elif A == move_w and x == 0:
+        S' -> S
+    elif A == move_n and y == 0:
+        S' -> S
+    elif A == move_s and y == grid_height - 1:
+        S' -> S
 
 Policy climb_safely:
     if x == 0 and y == 3:
