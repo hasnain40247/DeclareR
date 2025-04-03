@@ -11,7 +11,7 @@ import rlang
 AGENT_MODULES = {
     "Q-Learning": "q_learning",
     "Dyna-Q": "dyna_q",
-    "R-Max": "rmax"
+    "R-Max": "r_max"
 }
 
 
@@ -29,7 +29,7 @@ class RLangValidator:
             return gym.make("Taxi-v3")
         return gym.make("CliffWalking-v0")
 
-    def log(self, *args, print_to_console=True):
+    def log(self, *args, print_to_console=False):
         message = "[LOG] " + " ".join(str(arg) for arg in args)
         self.log_lines.append(message)
         if print_to_console:
@@ -41,15 +41,11 @@ class RLangValidator:
         filename = f"./logs/{prefix}_{timestamp}.log"
         with open(filename, "w") as f:
             f.write("\n".join(self.log_lines))
-        print(f"[LOG] Saved log to {filename}")
+        # print(f"[LOG] Saved log to {filename}")
 
     def run(self, algorithm,hyperparameters):
         module_folder = AGENT_MODULES.get(algorithm)
-        # if not module_folder:
-        #     self.log(f"Unsupported algorithm: {algorithm}")
-        #     return
-
-        # Base directory (e.g. /Users/hasnainsikora/Projects/DeclareR)
+    
         base_dir = os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
      
         module_path = os.path.join(base_dir, self.env_name, f"{module_folder}.py")
@@ -58,10 +54,7 @@ class RLangValidator:
             self.log(f"Agent file not found: {module_path}")
             return
 
-        # # Import the agent module dynamically
-        print("module_path")
-        print(module_path)
-        print()
+       
 
         module_name = f"{self.env_name}_{module_folder}"
       
@@ -69,7 +62,7 @@ class RLangValidator:
         agent_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(agent_module)
 
-        # Class name (e.g., RLangQLearningAgent)
+
         class_name = f"RLang{algorithm.replace('-', '')}Agent"
       
         AgentClass = getattr(agent_module, class_name)
@@ -79,54 +72,70 @@ class RLangValidator:
             if isinstance(val, str) and val.lower() == "none":
                 return None
             return val
-
-        parsed_params = {k: parse_val(v) for k, v in hyperparams.items()}
-        self.knowledge = parsed_params.pop("knowledge", None)
+    
   
 
-        if self.knowledge is not None and os.path.exists(self.knowledge):
-            self.knowledge = rlang.parse_file(self.knowledge.split("/")[-1])
-            print(self.knowledge)
-            self.log("Knowledge loaded from:", self.rlang_file)
+     
+    
+        parsed_params = {k: parse_val(v) for k, v in hyperparams.items()}
+        self.knowledge = parsed_params.pop("knowledge", None)
 
-        # Instantiate and run training
+
+        if self.knowledge is not None and os.path.exists(self.knowledge):
+            file=self.knowledge.split("/")[-1]
+            self.knowledge = rlang.parse_file(self.knowledge.split("/")[-1])
+
+            if algorithm=="Dyna-Q" :
+                policy_name=extract_policy_name(file)
+
+                parsed_params["policy_name"]=policy_name
+                self.log("Policy loaded from:", file)
+
+     
+            self.log("Knowledge loaded from:", file)
+     
         agent = AgentClass(self.env, knowledge=self.knowledge, **parsed_params)
-        rewards = agent.train(episodes=15000)
+        if algorithm=="R-Max":
+            rewards = agent.train(episodes=100)
+        else:
+            rewards = agent.train(episodes=15000)
+
 
         self.log(f"{algorithm} training complete. Episodes: {len(rewards)}")
         self.write_log_file()
 
+import re
+def extract_policy_name(filename):
+    with open(filename, 'r') as file:
+        content = file.read()
 
-# Entry point for subprocess from Tkinter
+    # Regular expression to find the policy name
+    policy_name_match = re.search(r'Policy\s+(\w+):', content)
+    
+    if policy_name_match:
+        return policy_name_match.group(1)  # Return the policy name found
+    
+    return None  # If no policy is found
+
+
 if __name__ == "__main__":
-    # if len(sys.argv) < 6:
-    #     print("Usage: python selector.py <rlang_file> <env_name> <algorithm> <hyperparams_json>")
-    #     sys.exit(1)
+
 
     _, rlang_file, env_name, algorithm, hyperparams_json = sys.argv
  
 
-    # Just the filename for knowledge
     rlang_file = os.path.basename(rlang_file)
     rlang_path = os.path.join(os.getcwd(), rlang_file)
-    print()
-    print("rlang")
-    print(rlang_file)
-    print("env name")
-    print(env_name)
-    print("algorithm")
-    print(algorithm)
-    print("hyper")
-    print(hyperparams_json)
-    print()
+   
  
     
     try:
         hyperparams = json.loads(hyperparams_json)
     except json.JSONDecodeError:
-        print("[ERROR] Could not parse hyperparams JSON.")
+        # print("[ERROR] Could not parse hyperparams JSON.")
         sys.exit(1)
 
+  
 
 
     # Initialize and run validator

@@ -27,13 +27,11 @@ HYPERPARAMETERS = {
         "gamma": 0.99,
         "epsilon": 0.1,
         "knowledge": None,
-        "policy name":None,
+  
 
         "p_policy": 0.2
     },
     "R-Max": {
-        "num_states": 500,
-        "num_actions": 6,
         "r_max": 20,
         "gamma": 0.95,
         "delta": 0.01,
@@ -273,6 +271,7 @@ class EnvRenderer(ctk.CTkFrame):
             )
             # Process output in real-time
             for line in iter(self.process.stdout.readline, ''):
+                print(line)
              
                 if not self.running:
                     break
@@ -604,7 +603,7 @@ class MainApplication(ctk.CTk):
 
 
 if __name__ == "__main__":
-    app = MainApplication(env_name="taxi")
+    app = MainApplication(env_name="cliff_walking")
     app.mainloop()
 
 
