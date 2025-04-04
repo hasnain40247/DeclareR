@@ -35,22 +35,21 @@ class BaseDynaQAgent:
     def weighted_value(self, q_func, state_dict, actions):
         return sum(max(q_func[k][a] for a in actions) * v for k, v in state_dict.items())
     
-    def train(self, n_episodes=500):
+    def train(self, episodes=500):
 
         if self.knowledge:
-            self.taxi_policy = self.knowledge[self.policy_name]
+            self.policy = self.knowledge[self.policy_name]
             self.preload_knowledge()
 
         rewards = []
-        for episode in tqdm(range(n_episodes)):
+        for episode in tqdm(range(episodes)):
             state, info = self.env.reset()
             total_reward = 0
             done = False
             truncated = False
             episode_details = {
                 'episode': episode,
-                'states': [],
-                'actions': [],
+           
                 'q_table': self.q_table.tolist()  
 
             }
@@ -61,8 +60,7 @@ class BaseDynaQAgent:
                 self.update_q_table(state, action, next_state, reward, done)
                 self.update_model(state, action, next_state, reward, done)
                 self.plan()
-                episode_details['states'].append(state)
-                episode_details['actions'].append(action)
+        
                 state = next_state
                 total_reward += reward
             for key, value in episode_details.items():
@@ -71,25 +69,16 @@ class BaseDynaQAgent:
                 elif isinstance(value, np.int64):
                     episode_details[key] = int(value)
             rewards.append(total_reward)
-            self.training_details.append(episode_details)
             print(f"Episode {episode}: Total Reward: {total_reward}")
+
+        self.training_details.append(episode_details)
 
 
         with open(f"./training_details.json", "w") as f:
             json.dump(self.training_details, f)
         return rewards
     
-    def select_action(self, state):
-        if self.knowledge and random.random() < self.p_policy:
-            taxi_row, taxi_col, passenger_location, destination = self.env.unwrapped.decode(state)
-            state_vector = VectorState([taxi_row, taxi_col, passenger_location, destination])
-            action = self.taxi_policy(state=state_vector)
-            return int(list(action.keys())[0][0])
-        
-        if random.random() < self.epsilon:
-            return self.env.action_space.sample()
-        return np.argmax(self.q_table[state])
-    
+
     def update_q_table(self, state, action, next_state, reward, done):
         best_next_action = np.argmax(self.q_table[next_state])
         td_target = reward + self.gamma * self.q_table[next_state][best_next_action] * (not done)

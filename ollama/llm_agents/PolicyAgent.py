@@ -1,8 +1,8 @@
 import ollama
-from BaseAgent import BaseAgent
+from llm_agents.BaseAgent import BaseAgent
 import re
 class PolicyAgent(BaseAgent):
-    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="gemma3:12b"):
+    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="llama3:8b"):
         super().__init__(system_prompt,few_shots,environment_definitions,vocab=vocab, model=model)
 
     def generate_policy(self, user_input):

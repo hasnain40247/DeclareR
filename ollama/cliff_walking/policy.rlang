@@ -17,5 +17,5 @@ Action move_s := 2
 Action move_w := 3
 
 Policy climb_safely:
- if agent_pos[0] == 0 and agent_pos[1] == 3:
-    Execute move_n
+    if x == 0 and y == 3:
+        Execute move_n

@@ -20,8 +20,7 @@ Action pick_up := 4
 Action drop_off := 5
 
 Effect main:
-   if carrying_passenger and A == drop_off:
-       if at_destination:
-           Reward 20
-       else:
-           Reward -10
+    if (A == pick_up or A == drop_off) and not at_destination:
+        Reward -10
+    else:
+        Reward 0

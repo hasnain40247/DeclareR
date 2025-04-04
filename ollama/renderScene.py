@@ -1,16 +1,16 @@
-import subprocess
 import customtkinter as ctk
 import gymnasium as gym
-import numpy as np
-import time
-from PIL import Image, ImageTk
-import threading
-import json
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
+import threading
 import os
-import sys
+import subprocess
+import numpy as np
+import json
+from PIL import Image, ImageTk
+from llm_agents.ReasoningAgent import ReasoningAgent
+from reasoningBotFrame import ReasoningBotFrame
 
 HYPERPARAMETERS = {
     "Q-Learning": {
@@ -41,13 +41,13 @@ HYPERPARAMETERS = {
     }
 }
 
-class EnvRenderer(ctk.CTkFrame):
+
+class RenderScene(ctk.CTkFrame):
     def __init__(self, parent,env_name, algorithm_name):
         super().__init__(parent, fg_color="#FFFDF0")
         self.parent = parent
         self.algorithm_name = algorithm_name
         self.env_name=env_name
-        # Create the gym environment
         if self.env_name=="taxi":
             self.env = gym.make("Taxi-v3", render_mode="rgb_array")
         else:
@@ -56,10 +56,8 @@ class EnvRenderer(ctk.CTkFrame):
 
 
         title=self.env_name[0].upper()+self.env_name[1:]
-        # Configure frame
         self.pack(fill="both", expand=True)
         
-        # Title with selected algorithm
         self.title_label = ctk.CTkLabel(
             self, 
             text=f"{title} Environment - {self.algorithm_name}", 
@@ -73,33 +71,28 @@ class EnvRenderer(ctk.CTkFrame):
 
         self._create_param_fields()
         
-        # Main frame
         self.main_frame = ctk.CTkFrame(self, fg_color="#F4F4F4", corner_radius=15)
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         self.control_frame = ctk.CTkFrame(self.main_frame, fg_color="#F4F4F4")
         self.control_frame.pack(fill="x", padx=20, pady=10)
         
-        self.reward_data = []  # To store episodic rewards for plotting
+        self.reward_data = []  
         
-        # Initialize the plot (only for training, not for testing)
         self.fig, self.ax = plt.subplots(figsize=(10, 5))
         self.ax.set_xlabel("Episodes")
         self.ax.set_ylabel("Reward")
         self.ax.set_title("Training Progress")
-        self.line, = self.ax.plot([], [], label="Reward per Episode")  # Empty line at first
+        self.line, = self.ax.plot([], [], label="Reward per Episode")  
         self.ax.legend()
 
-        # Embed plot into Tkinter window (this will be replaced later)
         self.canvas = FigureCanvasTkAgg(self.fig, self.main_frame)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        # Main frame
         self.main_frame2 = ctk.CTkFrame(self, fg_color="#F4F4F4", corner_radius=15)
         self.main_frame2.pack(fill="both", expand=True, padx=20, pady=20)
         
         
-        # Add status label
         self.status_label = ctk.CTkLabel(
             self.main_frame2,
             text="Ready to start simulation",
@@ -137,7 +130,7 @@ class EnvRenderer(ctk.CTkFrame):
         )
         self.test_button.pack(side="left", padx=10)
 
-        # Back button
+
         self.back_button = ctk.CTkButton(
             self.control_frame, 
             text="Back to Selection", 
@@ -154,12 +147,12 @@ class EnvRenderer(ctk.CTkFrame):
 
    
         
-        # Process and thread variables
+
         self.process = None
         self.running = False
         self.thread = None
         
-        # Animation related
+
         self.animation = None
     def _create_param_fields(self):
         """Display hyperparameters in a horizontal row."""
@@ -168,7 +161,7 @@ class EnvRenderer(ctk.CTkFrame):
         row = ctk.CTkFrame(self.param_frame, fg_color="transparent")
         row.pack(anchor="center", pady=10)
 
-        # row.pack(fill="x", pady=10)
+
 
         for key, value in params.items():
             field_frame = ctk.CTkFrame(row, fg_color="transparent")
@@ -190,7 +183,7 @@ class EnvRenderer(ctk.CTkFrame):
             else:
                 return int(val)
         except ValueError:
-            return val  # fallback to string if not numeric
+            return val  
 
     def start_simulation(self):
         if self.running:
@@ -214,13 +207,13 @@ class EnvRenderer(ctk.CTkFrame):
         self.status_label.configure(text="Simulation running...")
         self.reward_data = []  # Reset rewards
         
-        # Reset plot
+
         self.line.set_data([], [])
         self.ax.relim()
         self.ax.autoscale_view(True, True, True)
         self.canvas.draw()
 
-        # Start the simulation in a separate thread
+ 
         self.collected_params = {
             key: self._parse_value(entry.get()) for key, entry in self.param_entries.items()
         }
@@ -230,11 +223,11 @@ class EnvRenderer(ctk.CTkFrame):
         self.thread.daemon = True
         self.thread.start()
         
-        # Start the animation for smooth updates
+
         self.animation = FuncAnimation(
             self.fig, 
             self.update_plot, 
-            interval=200,  # Update every 200ms
+            interval=200,  
             blit=False
         )
         self.canvas.draw()
@@ -269,7 +262,6 @@ class EnvRenderer(ctk.CTkFrame):
                 text=True,
                 bufsize=1  # Line buffered
             )
-            # Process output in real-time
             for line in iter(self.process.stdout.readline, ''):
                 print(line)
              
@@ -302,18 +294,14 @@ class EnvRenderer(ctk.CTkFrame):
             print(f"Error in run_episodes: {e}")
         finally:
             self.running = False
-            # Use after() to safely update UI from a non-main thread
             self.after(0, self.simulation_completed)
     
     def update_plot(self, frame):
-        """Called by FuncAnimation to update the plot smoothly"""
         if len(self.reward_data) > 0:
             # Update the line data
             self.line.set_data(range(len(self.reward_data)), self.reward_data)
             
-            # Add smoothed moving average line if enough data points
             if hasattr(self, 'avg_line') and len(self.reward_data) >= 10:
-                # Simple moving average for smoothing
                 window_size = min(10, len(self.reward_data))
                 avg_rewards = np.convolve(
                     self.reward_data, 
@@ -323,7 +311,6 @@ class EnvRenderer(ctk.CTkFrame):
                 x_avg = range(window_size-1, len(self.reward_data))
                 self.avg_line.set_data(x_avg, avg_rewards)
             elif len(self.reward_data) >= 10 and not hasattr(self, 'avg_line'):
-                # Create the average line on first run with enough data
                 window_size = 10
                 avg_rewards = np.convolve(
                     self.reward_data, 
@@ -338,26 +325,33 @@ class EnvRenderer(ctk.CTkFrame):
                 )
                 self.ax.legend()
             
-            # Adjust limits if needed
             self.ax.relim()
             self.ax.autoscale_view(True, True, True)
         
         return [self.line]
 
     def test_simulation(self):
-               # Environment display
-        self.display_frame = ctk.CTkFrame(self.main_frame, fg_color="#FFFFFF", corner_radius=10)
-        self.display_frame.pack(pady=20, padx=20, fill="both", expand=True)
-        
+        self.row_frame = ctk.CTkFrame(self.main_frame, fg_color="#FFFFFF", corner_radius=10)
+        self.row_frame.pack(pady=5, padx=20, fill="both", expand=True)
+
+        # Environment display
+        self.display_frame = ctk.CTkFrame(self.row_frame, fg_color="#FFFFFF", corner_radius=10)
+        self.display_frame.pack(side="left", padx=20, pady=20, fill="both", expand=True)
+
         self.display_label = ctk.CTkLabel(self.display_frame, text="")
         self.display_label.pack(pady=10, expand=True)
-        
- 
-        # self.status_label.pack(pady=(5, 10))
-        
+
+        # Create a ChatFrame and add it beside the environment display in the row
+        agent=ReasoningAgent()
+        agent.start_ollama_serve()
+        self.chat_frame = ReasoningBotFrame(self.row_frame,agent)
+        self.chat_frame.pack(side="right", padx=20, pady=20, fill="both", expand=True)
+
+            
+
         """Run 5 test episodes and display the environment's rgb_array"""
         self.start_button.configure(state="disabled")
-        # self.status_label.configure(text="Running Test Episodes...")
+
 
         if hasattr(self, 'canvas'):
             widget = self.canvas.get_tk_widget()
@@ -365,9 +359,9 @@ class EnvRenderer(ctk.CTkFrame):
                 widget.destroy()
             del self.canvas
 
-        # Clear figure and axes references
+
         if hasattr(self, 'fig'):
-            plt.close(self.fig)  # Properly close the matplotlib figure
+            plt.close(self.fig)  
             del self.fig
         if hasattr(self, 'ax'):
             del self.ax
@@ -432,7 +426,7 @@ class EnvRenderer(ctk.CTkFrame):
     def run_step(self, episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated):
         if done:
             total_reward_sum += episode_reward
-            if episode < 5:
+            if episode < 2:
                 self.after(1000, self.run_episode, episode + 1, total_reward_sum)
             else:
                 # All test episodes done, update UI
@@ -498,112 +492,4 @@ class EnvRenderer(ctk.CTkFrame):
                     self.process.terminate()
                 except:
                     pass
-class SelectAlgorithmScreen(ctk.CTkFrame):
-    def __init__(self, parent):
-        super().__init__(parent, fg_color="#FFFDF0")
-        self.parent = parent
-        
-        # Configure frame
-        self.pack(fill="both", expand=True)
-        
-        title = ctk.CTkLabel(
-            self, 
-            text="Choose an Algorithm", 
-            font=("Inter", 28, "bold"), 
-            text_color="#424242"
-        )
-        title.pack(pady=(30, 10))
-        
-        container = ctk.CTkFrame(self, fg_color="transparent")
-        container.pack(expand=True, fill="both", padx=50, pady=20)
-
-        # Grid setup (set only one column for vertical alignment)
-        container.grid_columnconfigure(0, weight=1)
-
-        # Q-Learning
-        self._create_algorithm_card(
-            parent=container,
-            column=0,
-            name="Q-Learning",
-            callback=lambda: self.parent.launch_algorithm("Q-Learning")
-        )
-
-        # Dyna-Q
-        self._create_algorithm_card(
-            parent=container,
-            column=0,
-            name="Dyna-Q",
-            callback=lambda: self.parent.launch_algorithm("Dyna-Q")
-        )
-
-        # R-Max
-        self._create_algorithm_card(
-            parent=container,
-            column=0,
-            name="R-Max",
-            callback=lambda: self.parent.launch_algorithm("R-Max")
-        )
-
-    def _create_algorithm_card(self, parent, column, name, callback):
-        frame = ctk.CTkFrame(parent, corner_radius=15, fg_color="#F4F4F4")
-        
-        label = ctk.CTkLabel(
-            frame, 
-            text=name, 
-            font=("Inter", 22, "bold"), 
-            text_color="#333"
-        )
-        label.pack(pady=(15, 10))
-
-        button = ctk.CTkButton(
-            frame,
-            text=f"Use {name}",
-            fg_color="#FFD3B6",
-            text_color="#424242",
-            font=("Inter", 18, "bold"),
-            command=callback,
-            corner_radius=10,
-            hover_color="#FFC59E"
-        )
-        button.pack(pady=(0, 15))
-        
-        # Get the next available row
-        frame.grid(row=parent.grid_size()[1], column=column, padx=20, pady=20, sticky="nsew")
-
-
-class MainApplication(ctk.CTk):
-    def __init__(self,env_name):
-        super().__init__()
-        self.title("Algorithm Playground")
-        self.attributes("-fullscreen", True)
-        self.configure(fg_color="#FFFDF0")
-        self.env_name=env_name
-        ctk.set_appearance_mode("light")
-        
-   
-        self.bind("<Escape>", lambda event: self.attributes("-fullscreen", False))
-        
-   
-        self.show_selection_screen()
-    
-    def show_selection_screen(self):
-    
-        for widget in self.winfo_children():
-            widget.destroy()
-        
-
-        self.selection_screen = SelectAlgorithmScreen(self)
-    
-    def launch_algorithm(self, algorithm_name):
-
-        for widget in self.winfo_children():
-            widget.destroy()
-    
-        self.renderer = EnvRenderer(self,self.env_name, algorithm_name)
-
-
-if __name__ == "__main__":
-    app = MainApplication(env_name="cliff_walking")
-    app.mainloop()
-
 
