@@ -16,9 +16,9 @@ sys.path.append(three_folders_up)
 
 from base_r_max import BaseRLangRMaxAgent
 
-class RLangRmaxAgent(BaseRLangRMaxAgent):
-    def __init__(self, env, knowledge=None, num_states=500, num_actions=6, r_max=20, gamma=0.95, delta=0.01, M=1):
-        super().__init__(env, knowledge=knowledge, num_states=500, num_actions=6, r_max=20, gamma=0.95, delta=0.01, M=1)
+class RLangRMaxAgent(BaseRLangRMaxAgent):
+    def __init__(self, env, knowledge=None,  r_max=20, gamma=0.95, delta=0.01, M=1):
+        super().__init__(env, knowledge=knowledge, r_max=20, gamma=0.95, delta=0.01, M=1)
 
     def preload_knowledge(self):
         if not self.knowledge:
@@ -68,15 +68,14 @@ class RLangRmaxAgent(BaseRLangRMaxAgent):
 if __name__ == "__main__":
     env = gym.make("Taxi-v3")
     knowledge = rlang.parse_file("./taxi.rlang")
-    agent_with_policy = RLangRmaxAgent(env,knowledge=knowledge)
-    rewards_with_policy = agent_with_policy.train(n_episodes=200)
+    agent_with_policy = RLangRMaxAgent(env,knowledge=knowledge)
+    rewards_with_policy = agent_with_policy.train(episodes=200)
     print(f"Average reward with policy: {agent_with_policy.test(10)}")
-    agent = RLangRmaxAgent(env)
-    rewards = agent.train(n_episodes=200)
+    agent = RLangRMaxAgent(env)
+    rewards = agent.train(episodes=200)
     print(f"Average reward without policy: {agent.test(10)}")
     agent.plot_training_rewards(rewards_with_policy,save_path="./plots/rmax_training_rewards_knowledge.png")
     agent.plot_training_rewards(rewards,save_path="./plots/rmax_training_rewards.png")
-
 
 
 

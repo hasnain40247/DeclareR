@@ -54,18 +54,18 @@ if __name__ == "__main__":
     agent_with_policy = RLangRmaxAgent(env,knowledge=knowledge)
     rewards_with_policy = agent_with_policy.train(n_episodes=200)
     print(f"Average reward with policy: {agent_with_policy.test(10)}")
-    # agent = RLangRmaxAgent(env)
-    # rewards = agent.train(n_episodes=50)
-    # print(f"Average reward without policy: {agent.test(10)}")
-    # plot_training_rewards(rewards_with_policy,save_path="./plots/rmax_training_rewards_knowledge.png")
-    # plot_training_rewards(rewards,save_path="./plots/rmax_training_rewards.png")
-    # plot_comparison_training_rewards(
-    #     reward_dict={
-    #         "With RLang Policy": rewards_with_policy,
-    #         "Without RLang": rewards
-    #     },
-    #     save_path="./plots/rmax_learning_comparison.png"
-    # )
+    agent = RLangRmaxAgent(env)
+    rewards = agent.train(n_episodes=50)
+    print(f"Average reward without policy: {agent.test(10)}")
+    plot_training_rewards(rewards_with_policy,save_path="./plots/rmax_training_rewards_knowledge.png")
+    plot_training_rewards(rewards,save_path="./plots/rmax_training_rewards.png")
+    plot_comparison_training_rewards(
+        reward_dict={
+            "With RLang Policy": rewards_with_policy,
+            "Without RLang": rewards
+        },
+        save_path="./plots/rmax_learning_comparison.png"
+    )
 
 
 
