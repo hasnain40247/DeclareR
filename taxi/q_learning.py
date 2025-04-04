@@ -33,7 +33,7 @@ class RLangQLearningAgent(BaseRLangQLearningAgent):
                 for s in states:
                     taxi_row, taxi_col, passenger_location, destination = self.env.unwrapped.decode(s)
                     for i, a in enumerate(actions):
-                        self.q_table[s][a] = reward_function(state=VectorState([taxi_row, taxi_col, passenger_location, destination]), action=i)
+                        self.q_table[s,a] = reward_function(state=VectorState([taxi_row, taxi_col, passenger_location, destination]), action=i)
             
             if transition_function and reward_function:
                 for s in states:
@@ -49,14 +49,14 @@ class RLangQLearningAgent(BaseRLangQLearningAgent):
 
 if __name__ == '__main__':
     env = gym.make("Taxi-v3")
-    agent = RLangQLearningAgent(env,env_name="taxi")
-    rewards = agent.train(episodes=10000)
-    print(f"Training complete. Average reward: {agent.test(10)}")
+    # agent = RLangQLearningAgent(env,env_name="taxi")
+    # rewards = agent.train(episodes=10000)
+    # print(f"Training complete. Average reward: {agent.test(10)}")
     #     np.set_printoptions(threshold=np.inf) 
 
-    # knowledge = rlang.parse_file("./taxi.rlang")
-    # agent_with_policy = RLangQLearningAgent(env, knowledge=knowledge)
-    # rewards_with_policy = agent_with_policy.train(episodes=15000)
+    knowledge = rlang.parse_file("./taxi.rlang")
+    agent_with_policy = RLangQLearningAgent(env, knowledge=knowledge)
+    rewards_with_policy = agent_with_policy.train(episodes=15000)
     # print(f"Training complete. Average reward: {agent_with_policy.test(10)}")
     # agent = RLangQLearningAgent(env)
     # rewards = agent.train(episodes=15000)

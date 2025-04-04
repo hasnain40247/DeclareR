@@ -11,7 +11,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pygame
 import os  # To force quit Pygame if needed
-from utils import plot_training_rewards, plot_comparison_training_rewards
+# from utils import plot_training_rewards, plot_comparison_training_rewards
 import json
 import sys
 three_folders_up = os.path.abspath(os.path.join(__file__, f"../../agents/"))
@@ -19,8 +19,8 @@ sys.path.append(three_folders_up)
 from base_q_learning import BaseRLangQLearningAgent
 
 class RLangQLearningAgent(BaseRLangQLearningAgent):
-    def __init__(self, env,env_name, knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
-        super().__init__(env,env_name="taxi",knowledge=knowledge, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001)
+    def __init__(self, env,env_name="cliff_walking", knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
+        super().__init__(env,env_name=env_name,knowledge=knowledge, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001)
       
     def state_to_vector(self, state):
         width = self.env.unwrapped.shape[1]

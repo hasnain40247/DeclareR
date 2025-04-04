@@ -9,7 +9,7 @@ import matplotlib
 matplotlib.use('Agg')  
 import matplotlib.pyplot as plt
 import pygame
-from utils import plot_training_rewards, plot_comparison_training_rewards
+# from utils import plot_training_rewards, plot_comparison_training_rewards
 import os
 import sys
 three_folders_up = os.path.abspath(os.path.join(__file__, f"../../agents/"))
@@ -17,7 +17,7 @@ print(three_folders_up)
 sys.path.append(three_folders_up)
 from base_dyna_q import BaseDynaQAgent
 
-class DynaQAgent(BaseDynaQAgent):
+class RLangDynaQAgent(BaseDynaQAgent):
     def __init__(self, env, n_planning_steps, alpha=0.1, gamma=0.99, epsilon=0, knowledge=None,policy_name=None, p_policy=0.2):
        super().__init__(env, n_planning_steps, alpha=0.1, gamma=0.99, epsilon=0.1, knowledge=knowledge,policy_name=policy_name, p_policy=0.2)
         
@@ -52,8 +52,17 @@ class DynaQAgent(BaseDynaQAgent):
         return defaultdict(lambda: np.zeros(self.env.action_space.n), {
             state: np.array([q_func[state][a] for a in actions]) for state in states
         })
-
-    
+    def select_action(self, state):
+            if self.knowledge and random.random() < self.p_policy:
+                vector_s = self.state_to_vector(state)
+                action = self.policy(state=VectorState(vector_s))
+                return int(list(action.keys())[0][0])
+            
+            if random.random() < self.epsilon:
+                return self.env.action_space.sample()
+            return np.argmax(self.q_table[state])
+        
+        
 
 
 if __name__ == "__main__":

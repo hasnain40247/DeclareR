@@ -16,12 +16,12 @@ import json
 # self, env, knowledge=None, num_states=500, num_actions=6, r_max=20, gamma=0.95, delta=0.01, M=1):
 
 class BaseRLangRMaxAgent:
-     def __init__(self, env, knowledge=None, num_states=500, num_actions=6, r_max=20, gamma=0.95, delta=0.01, M=1):
+     def __init__(self, env, knowledge=None, r_max=20, gamma=0.95, delta=0.01, M=1):
 
         self.knowledge = knowledge
         self.num_states = env.observation_space.n
         self.num_actions = env.action_space.n
-        self.actions = list(range(num_actions))
+        self.actions = list(range(self.num_actions))
 
         self.r_max = r_max
         self.gamma = gamma
@@ -100,15 +100,14 @@ class BaseRLangRMaxAgent:
                 self.emp_transition_dist[action, state, :] = np.ones(self.num_states) / self.num_states
 
 
-     def train(self, n_episodes=15000, max_steps=100):
+     def train(self, episodes=15000, max_steps=100):
         all_rewards = []
 
-        for episode in tqdm(range(n_episodes)):
+        for episode in tqdm(range(episodes)):
             state, info = self.env.reset()
             episode_details = {
                 'episode': episode,
-                'states': [],
-                'actions': [],
+            
                
             }
             rewards = []
@@ -117,8 +116,7 @@ class BaseRLangRMaxAgent:
                 q_optimal = self.compute_near_optimal_value_function()
                 action = self.select_action(q_optimal, state)
                 new_state, reward, terminated, truncated, _ = self.env.step(action)
-                episode_details['states'].append(int(state))
-                episode_details['actions'].append(int(action))
+        
                 self.update_transition_model(state, action, new_state)
                 self.update_reward_model(state, action, reward)
 
@@ -129,13 +127,19 @@ class BaseRLangRMaxAgent:
             self.update_empirical_mdp()
 
             episode_reward = sum(rewards)
-            episode_details["q_table"]=q_optimal.tolist()  
-            self.training_details.append(episode_details)
+            episode_details["q_table"]=q_optimal.tolist() 
+            for key, value in episode_details.items():
+                if isinstance(value, list):
+                    episode_details[key] = [int(v) if isinstance(v, np.int64) else v for v in value]
+                elif isinstance(value, np.int64):
+                    episode_details[key] = int(value) 
+ 
 
             print(f"Episode {episode}: Total Reward: {episode_reward}")  
 
             all_rewards.append(episode_reward)
 
+        self.training_details.append(episode_details)
 
         with open(f"./training_details.json", "w") as f:
             json.dump(self.training_details, f)

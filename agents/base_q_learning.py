@@ -33,7 +33,9 @@ class BaseRLangQLearningAgent:
         return sum(r_func(state=VectorState(k), action=action) * v for k, v in state_dict.items())
 
     def weighted_value(self, q_func, state_dict, actions):
-        return sum(max(q_func[k, a] for a in actions) * v for k, v in state_dict.items())
+        # return sum(max(q_func[k, a] for a in actions) * v for k, v in state_dict.items())
+        return sum(np.max([q_func[k, a] for a in actions]) * v for k, v in state_dict.items())
+
 
     def train(self, episodes, reward_callback=None):
         if self.knowledge:
