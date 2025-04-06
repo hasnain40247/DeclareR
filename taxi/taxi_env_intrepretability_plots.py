@@ -277,7 +277,6 @@ class GetExplainabilityPlotsForEnv:
         graph.render("plots/decision_tree")  # Generates decision tree as a pdf file
         graph.view()
         
-        
 class LimeExplainer:
     def __init__(self, env, Q_table):
         self.env = env
@@ -294,7 +293,7 @@ class LimeExplainer:
             5: "Dropoff"
         }
 
-    def softmax_with_temperature(self, x, temperature=0.5):
+    def softmax_with_temperature(self, x, temperature=0.1):
         """Softmax with temperature scaling."""
         exp_values = np.exp(x / temperature)
         return exp_values / np.sum(exp_values)
@@ -304,53 +303,52 @@ class LimeExplainer:
         taxi_row, taxi_col, passenger, destination = self.env.decode(state)
         return np.array([taxi_row, taxi_col, passenger, destination])
 
-    def predict_fn(self, x):
-        q_values = []
-        for sample in x:
-            taxi_row, taxi_col, passenger, destination = map(int, sample)
+    def predict_fn(self):
+        """Generate prediction function that outputs action probabilities."""
+        def predict(x):
+            scores = []
+            for sample in x:
+                taxi_row, taxi_col, passenger, destination = map(int, sample)
+                taxi_row = int(min(max(taxi_row, 0), 4))
+                taxi_col = int(min(max(taxi_col, 0), 4))
+                passenger = int(min(max(passenger, 0), 4))
+                destination = int(min(max(destination, 0), 3))
 
-            # Ensure valid bounds
-            taxi_row = min(max(taxi_row, 0), 4)
-            taxi_col = min(max(taxi_col, 0), 4)
-            passenger = min(max(passenger, 0), 4)
-            destination = min(max(destination, 0), 3)
+                state = self.env.encode(taxi_row, taxi_col, passenger, destination)
+                q_values = self.Q_table[state]
+                probabilities = self.softmax_with_temperature(q_values)
+                scores.append(probabilities)
+            return np.array(scores)
+        return predict
+    
+    def generate_lime_explanation_for_chosen_action(self, state_to_explain=62):
+        """Generate a LIME explanation for the greedy action at the given state."""
 
-            state = self.env.encode(taxi_row, taxi_col, passenger, destination)
+        
+        # Get the best action for the state (max Q-value)
+        best_action = np.argmax(self.Q_table[state_to_explain])
 
-            if state >= self.state_dim or state < 0:
-                q_values.append(np.ones(self.action_dim) / self.action_dim)  # Uniform probability
-            else:
-                q_values.append(self.softmax_with_temperature(self.Q_table[state], temperature=1.0))  # Higher temperature
-
-        return np.array(q_values)  # Shape: (n_samples, action_dim)
-
-    def generate_lime_explanations(self, state_to_explain=62):
-        """Generate LIME explanations for the chosen state."""
+        # Create the LIME explainer
         explainer = LimeTabularExplainer(
             training_data=np.array([self.state_to_features(s) for s in range(self.state_dim)]),
-            feature_names=["taxi_row", "taxi_col", "passenger", "destination"],
-            class_names=self.action_labels,  # Action names
+            feature_names=["taxi_row", "taxi_col", "passenger", "destination"], # Features are row and column in the grid
+            class_names=self.action_labels,  # Action names are correctly passed
             discretize_continuous=False
         )
-
-        explanations = {}
-        for action in range(self.action_dim):
-            exp = explainer.explain_instance(
-                self.state_to_features(state_to_explain),
-                self.predict_fn,
-                labels=[action],  # Specify the action label for explanation
-                num_features=4
-            )
-            explanations[action] = exp
-
-        return explanations
-
-    def print_lime_explanations(self, explanations):
-        """Print the LIME explanations."""
         
-        for action in range(self.action_dim):
-            print(f"Explanation for Action {action} ({self.action_symbols[action]}):")
-            explanations[action].show_in_notebook()
+        explanation = explainer.explain_instance(
+            self.state_to_features(state_to_explain),
+            self.predict_fn(),
+            labels=[best_action], 
+            num_features=4
+        )
+                
+        print(f"Env locations for State {env.locs}:")
+
+        # Show feature-wise contributions for the chosen action
+        print(f"\nExplanation for State:{state_to_explain} Action {best_action} ({self.action_symbols[best_action]}):")
+        explanation.show_in_notebook()
+
 
 
 def get_policy(env, Q_table):
@@ -413,19 +411,4 @@ if __name__ == '__main__':
 
     lime_explainer = LimeExplainer(env, Q_table)
 
-    explanations = lime_explainer.generate_lime_explanations(state_to_explain=62)
-
-    lime_explainer.print_lime_explanations(explanations)
-
-
-    """ 
-    Lime plot might mean something like:
-
-    taxi_row = 0.11 (not south) suggests that a higher taxi_row makes "South" less likely. For example, if the taxi is higher up in the grid (in a higher row), "South" is less likely to be chosen.
-
-    passenger = 0.08 (south) suggests that having a passenger (or a certain state of the passenger) increases the likelihood of choosing "South".
-
-    taxi_col = 0.04 (not south) suggests that taxi_col has a small negative impact on choosing "South".
-
-    destination = 0.03 (not south) suggests that the destination feature also has a small negative impact on choosing "South
-    """
+    lime_explainer.generate_lime_explanation_for_chosen_action(state_to_explain=1)

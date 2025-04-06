@@ -287,12 +287,6 @@ class GetExplainabilityPlotsForEnv:
         graph.render("plots/decision_tree")  # Generates decision tree as a pdf file
         graph.view()
 
-
-import numpy as np
-import matplotlib.pyplot as plt
-from lime.lime_tabular import LimeTabularExplainer
-import seaborn as sns
-
 class LimeExplainer:
     def __init__(self, env, Q_table):
         self.env = env
@@ -307,81 +301,79 @@ class LimeExplainer:
             3: "Left",
         }
 
+        # Define the grid size (assuming a grid of 4 rows and 12 columns for CliffWalking)
+        self.grid_rows = 4
+        self.grid_cols = 12
+
     def softmax_with_temperature(self, x, temperature=1.0):
         """Softmax with temperature scaling."""
         exp_values = np.exp(x / temperature)
         return exp_values / np.sum(exp_values)
 
     def state_to_features(self, state):
-        """Convert CliffWalking state index to features."""
-        # Here we just treat the state as an integer representing the grid position.
-        # In this case, we directly use the state number.
-        return np.array([state])
+        """Convert CliffWalking state index to features (row, col)."""
+        row = state // self.grid_cols  # Row is the quotient of state divided by columns
+        col = state % self.grid_cols   # Column is the remainder of state divided by columns
+        return np.array([row, col])
 
-    def predict_fn(self, x):
-        q_values = []
-        for sample in x:
-            state = int(sample)
+    def predict_fn(self):
+        """Generate prediction function that outputs action probabilities."""
+        def predict(x):
+            scores = []
+            for sample in x:
+                # Clamp row and col to ensure they are within the grid bounds
+                row, col = map(int, sample)
+                row = max(0, min(row, self.grid_rows - 1))  # Ensure row is between 0 and 3
+                col = max(0, min(col, self.grid_cols - 1))  # Ensure col is between 0 and 11
 
-            if state >= self.state_dim or state < 0:
-                q_values.append(np.ones(self.action_dim) / self.action_dim)  # Default to uniform distribution
-            else:
-                q_values.append(self.softmax_with_temperature(self.Q_table[state], temperature=1.0))  # Softmax with temperature
+                # Convert (row, col) to state index
+                state = self.features_to_state(row, col)
+                
+                # Get the Q-values for the current state
+                q_values = self.Q_table[state]
+                
+                # Apply softmax to get the probabilities for each action
+                probabilities = self.softmax_with_temperature(q_values)
+                
+                # Append the probabilities for the current state
+                scores.append(probabilities)
+            return np.array(scores)
+        return predict
 
-        return np.array(q_values)
-
+    def features_to_state(self, row, col):
+        """Convert (row, col) back to state index."""
+        return row * self.grid_cols + col
 
     def generate_lime_explanations(self, state_to_explain):
-        """Generate LIME explanations for the chosen state."""
+        """Generate LIME explanations for the best action at the chosen state."""
+        
+        # Get the best action for the state (max Q-value)
+        best_action = np.argmax(self.Q_table[state_to_explain])
 
+        # Create the LIME explainer
         explainer = LimeTabularExplainer(
             training_data=np.array([self.state_to_features(s) for s in range(self.state_dim)]),
-            feature_names=["state"],  # The only feature is the state number
+            feature_names=["row", "col"],  # Features are row and column in the grid
             class_names=self.action_labels,  # Action names are correctly passed
             discretize_continuous=False
         )
 
-        explanations = {}
-        for action in range(self.action_dim):
-            exp = explainer.explain_instance(
-                self.state_to_features(state_to_explain),
-                self.predict_fn,
-                labels=[action],  # Specify the action label for explanation
-                num_features=1  # Since we only have 1 feature, we'll set num_features to 1
-            )
-            
-            explanations[action] = exp
+        # Generate explanation for only the best action
+        exp = explainer.explain_instance(
+            self.state_to_features(state_to_explain),
+            self.predict_fn(),  # Use the simplified predict_fn
+            labels=[best_action],  # Specify the best action label for explanation
+            num_features=2  # Now we have 2 features (row and col)
+        )
         
-        
-        lime_explainer.print_lime_explanations(explanations, state_to_explain)
+        # Print and plot explanations
+        self.print_lime_explanations(exp, best_action, state_to_explain)
 
-    def plot_lime_explanations(self, explanations, state_to_explain):
-        """Plot the LIME explanations for each action."""
+    def print_lime_explanations(self, explanation, best_action, state_to_explain):
+        """Print the LIME explanations and show the plot."""
+        print(f"Explanation for State:{state_to_explain} Best Action {best_action} ({self.action_symbols[best_action]}):")
+        explanation.as_pyplot_figure()
 
-        # Initialize the figure
-        plt.figure(figsize=(12, 8))
-        sns.set(style="whitegrid")  # Apply a nicer grid style
-
-        for action, exp in explanations.items():
-            try:
-                fig = exp.as_pyplot_figure()
-                fig.suptitle(f'LIME Explanation for Action: {self.action_symbols[action]}', fontsize=14)
-                plt.tight_layout()
-                plt.show()
-            except KeyError as e:
-                print(f"Explanation for Action {self.action_symbols[action]} not available due to KeyError: {e}")
-                print(f"Predictions for state {state_to_explain} : {self.predict_fn([state_to_explain])}")
-
-
-    def print_lime_explanations(self, explanations, state_to_explain):
-        """Print the LIME explanations and show the plots."""
-        for action in range(self.action_dim):
-            print(f"Explanation for Action {action} ({self.action_symbols[action]}):")
-            explanations[action].show_in_notebook()  # For notebook-based environments
-            
-        self.plot_lime_explanations(explanations, state_to_explain)
-
-    
 def get_policy(env, Q_table):
     policy = {}
     states = []
@@ -446,4 +438,4 @@ if __name__ == '__main__':
 
     lime_explainer = LimeExplainer(env, Q_table)
 
-    lime_explainer.generate_lime_explanations(state_to_explain=36)
+    lime_explainer.generate_lime_explanations(state_to_explain=16)
