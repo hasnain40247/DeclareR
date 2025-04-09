@@ -19,12 +19,6 @@ Action move_w := 3
 Action pick_up := 4
 Action drop_off := 5
 
-Effect movement:
-    if A == move_e:  
-        Reward -10
-    elif A == move_w and x < 4:  
-        S'.x -> S.x + 1
-    elif A == move_n and y < 4:  
-        S'.y -> S.y + 1
-    elif A == move_s and y > 0:  
-        S'.y -> S.y - 1
+Effect main:  
+    if A == pick_up:  
+        S'.passenger_location -> 4

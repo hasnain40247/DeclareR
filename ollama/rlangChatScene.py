@@ -214,11 +214,40 @@ class RLangChatScene(ctk.CTk):
             agent = self.effect_agent if self.is_generating_effect else self.policy_agent
 
             stream = agent.generate_stream(user_text)  # Same method for both first + refined prompts
+            in_think_block = False  # Track whether we're inside <think>...</think>
             response_text = ""
 
             for chunk in stream:
-                delta = chunk["message"]["content"].replace("```", "")
-                response_text += delta
+                delta = chunk["message"]["content"]
+                delta = delta.replace("```", "")
+               
+
+                processed = ""
+                i = 0
+
+                while i < len(delta):
+                    if not in_think_block:
+                        start_idx = delta.find("<think>", i)
+                        if start_idx != -1:
+                            # Append the part before <think>
+                            processed += delta[i:start_idx]
+                            i = start_idx + len("<think>")
+                            in_think_block = True
+                        else:
+                            # No <think> tag found, just append remaining
+                            processed += delta[i:]
+                            break
+                    else:
+                        end_idx = delta.find("</think>", i)
+                        if end_idx != -1:
+                            i = end_idx + len("</think>")
+                            in_think_block = False
+                        else:
+                            # Still inside think block, skip the rest of this chunk
+                            break
+          
+
+                response_text += processed
                 typing_bubble.configure(text=response_text)
                 self.update_idletasks()
 
