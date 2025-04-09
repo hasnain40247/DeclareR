@@ -1,6 +1,6 @@
 [LOG] Parsing file: effect.rlang
 [LOG] Reward Function → None
-[LOG] Transition Function → <TransitionFunction [ACTION]->[STATE]>
+[LOG] Transition Function → <TransitionFunction [STATE_ACTION]->[STATE]>
 [LOG] Beginning state-action logging...
 
 [LOG] State=[0, 0, 0, 0], Action=0 → Transition = {}

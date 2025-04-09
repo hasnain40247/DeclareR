@@ -19,6 +19,6 @@ Action move_w := 3
 Action pick_up := 4
 Action drop_off := 5
 
-Effect main:  
-    if A == pick_up:  
-        S'.passenger_location -> 4
+Effect main:
+    if at_passenger and A == pick_up:
+        S'.passenger_location -> S.taxi_position
