@@ -50,6 +50,8 @@ class RenderScene(ctk.CTkFrame):
         self.env_name=env_name
         if self.env_name=="taxi":
             self.env = gym.make("Taxi-v3", render_mode="rgb_array")
+        elif self.env_name=="frozen_lake":
+            self.env = gym.make("FrozenLake-v1", render_mode="rgb_array")
         else:
             self.env = gym.make("CliffWalking-v0", render_mode="rgb_array")
 
@@ -384,7 +386,10 @@ class RenderScene(ctk.CTkFrame):
             
             # Resize image to fit display better
             width, height = img.size
-            new_width = 800
+            if self.env_name == "frozen_lake":
+                new_width = 400  # Smaller for Frozen Lake
+            else:
+                new_width = 800
             new_height = int(height * (new_width / width))
             img = img.resize((new_width, new_height), Image.LANCZOS)
             
