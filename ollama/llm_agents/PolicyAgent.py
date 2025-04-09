@@ -1,81 +1,55 @@
 import ollama
 from llm_agents.BaseAgent import BaseAgent
 import re
-class PolicyAgent(BaseAgent):
-    def __init__(self,system_prompt,few_shots,environment_definitions,vocab, model="llama3:8b"):
-        super().__init__(system_prompt,few_shots,environment_definitions,vocab=vocab, model=model)
 
-    def generate_policy(self, user_input):
-        """Generates a structured taxi policy using Ollama based on user input."""
-        
-        prompt = f"""
+class PolicyAgent(BaseAgent):
+    def __init__(self, system_prompt, few_shots, environment_definitions, vocab=None, model="llama3:8b"):
+        super().__init__(system_prompt, few_shots, environment_definitions, vocab=vocab, model=model)
+        self.chat_history = []
+        self.initial_prompt = self._build_intro_prompt()
+
+    def _build_intro_prompt(self):
+        """Initial setup message including system, few-shots, and task context."""
+        return f"""
 {self.system_prompt}
 
 ### Output Instruction:
- **Ensure the output is just the policy. Do not return any explanatory text at all.**
+**Ensure the output is just the policy. Do not return any explanatory text at all.**
 
 ### Few-Shot Examples:
 {self.few_shots}
 
-### Now generate a policy based on the following advice:
-
-Advice = "{user_input}"
-Primitives = {self.primitives}
-Policy =
+Now continue the conversation. I will give you natural language advice. You will respond with structured policy blocks only.
 """
-        
-        response = ollama.chat(model=self.model, messages=[{"role": "user", "content": prompt}])
 
-        cleaned_output = self.clean_policy_output(response['message']['content'].strip())
-        
-        return cleaned_output
-    
-    def generate_policy_stream(self, user_input):
-            prompt = f"""
-            {self.system_prompt}
+    def generate_stream(self, user_input):
+        """Handles both first policy and follow-up refinements with chat history."""
+        # Set up chat history if first time
+        if not self.chat_history:
+            self.chat_history.append({"role": "user", "content": self.initial_prompt})
+            self.chat_history.append({
+                "role": "assistant",
+                "content": "Understood. I'm ready for your first piece of advice."
+            })
 
-            ### Output Instruction:
-            **Ensure the output is just the policy. Do not return any explanatory text at all.**
+        formatted_advice = f'Advice = "{user_input}"\nPrimitives = {self.primitives}\nPolicy ='
+        self.chat_history.append({"role": "user", "content": formatted_advice})
 
-            ### Few-Shot Examples:
-            {self.few_shots}
+        stream = ollama.chat(model=self.model, messages=self.chat_history, stream=True)
+        return stream
 
-            ### Now generate a policy based on the following advice:
-
-            Advice = "{user_input}"
-            Primitives = {self.primitives}
-            Policy =
-            """
-            stream = ollama.chat(model=self.model, messages=[{"role": "user", "content": prompt}], stream=True)
-            return stream 
-    def refine_policy_stream(self, original_Policy, refinement_instruction):
-            prompt = f"""
-        {self.system_prompt}
-
-        ### Rules:
-            - Take the provided `Policy` function.
-            - Apply the user’s feedback **exactly**.
-            - If prompted to rename the policy replace the current name with the new one.
-            - Strictly return the **revised** `Policy` only — do NOT explain your changes.
-            - Do NOT include any headings like 'Policy =' or additional comments.
-   
-
-            
-
-        **Original Policy:**
-        {original_Policy}
-
-        **Refinement Instruction:**
-        "{refinement_instruction}"
-
-        Policy =
-        """
-            stream = ollama.chat(model=self.model, messages=[{"role": "user", "content": prompt}], stream=True)
-            return stream
+    def register_response(self, policy_response):
+        """Add assistant policy response to chat history, cleaned."""
+        cleaned = self.clean_policy_output(policy_response)
+        self.chat_history.append({"role": "assistant", "content": cleaned})
 
     def clean_policy_output(self, raw_output):
-        """Removes anything before 'Policy <dynamic_name>:' to ensure clean formatting."""
-        match = re.search(r"(?m)^Policy \w+:", raw_output)  # Match any line that starts with "Policy <name>:"
+        """Extract everything from 'Policy <name>:' onward."""
+        match = re.search(r"(?m)^Policy \w+:", raw_output)
         if match:
-            return raw_output[match.start():]  # Keep everything from "Policy <name>:" onwards
-        return raw_output  # If no match is found, return the original response
+            return raw_output[match.start():]
+        return raw_output
+
+    def reset_history(self):
+        """Start a new policy conversation."""
+        self.chat_history = []

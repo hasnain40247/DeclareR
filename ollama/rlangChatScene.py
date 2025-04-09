@@ -197,28 +197,39 @@ class RLangChatScene(ctk.CTk):
 
         def fetch_output():
   
-            if self.is_generating_effect:
+            # if self.is_generating_effect:
             
-                if not self.generated_effect_history:
-                    stream = self.effect_agent.generate_effect_stream(user_text)
-                else:
-                    last_effect = self.generated_effect_history[-1]
-                    stream = self.effect_agent.refine_effect_stream(last_effect, user_text)
-            else:
-                if not self.generated_policy_history:
-                    stream = self.policy_agent.generate_policy_stream(user_text)
-                else:
-                    last_effect = self.generated_policy_history[-1]
-                    stream = self.policy_agent.refine_policy_stream(last_effect, user_text)
+            #     if not self.generated_effect_history:
+            #         stream = self.effect_agent.generate_effect_stream(user_text)
+            #     else:
+            #         last_effect = self.generated_effect_history[-1]
+            #         stream = self.effect_agent.refine_effect_stream(last_effect, user_text)
+            # else:
+            #     if not self.generated_policy_history:
+            #         stream = self.policy_agent.generate_policy_stream(user_text)
+            #     else:
+            #         last_effect = self.generated_policy_history[-1]
+            #         stream = self.policy_agent.refine_policy_stream(last_effect, user_text)
               
-      
+            agent = self.effect_agent if self.is_generating_effect else self.policy_agent
+
+            stream = agent.generate_stream(user_text)  # Same method for both first + refined prompts
             response_text = ""
+
             for chunk in stream:
-                delta = chunk['message']['content']
-                delta = chunk['message']['content'].replace("```", "")
+                delta = chunk["message"]["content"].replace("```", "")
                 response_text += delta
                 typing_bubble.configure(text=response_text)
                 self.update_idletasks()
+
+            agent.register_response(response_text)  # Add to chat memory
+            # response_text = ""
+            # for chunk in stream:
+            #     delta = chunk['message']['content']
+            #     delta = chunk['message']['content'].replace("```", "")
+            #     response_text += delta
+            #     typing_bubble.configure(text=response_text)
+            #     self.update_idletasks()
 
             if self.is_generating_effect:
                 self.effect_text = response_text
