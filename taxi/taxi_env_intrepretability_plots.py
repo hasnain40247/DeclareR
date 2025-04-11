@@ -177,7 +177,6 @@ class GetExplainabilityPlotsForEnv:
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title("Taxi Movement Trajectory")
-        plt.gca().invert_yaxis()
         plt.tight_layout()
         plt.savefig(filename)
         plt.close()
@@ -192,7 +191,6 @@ class GetExplainabilityPlotsForEnv:
 
         plt.figure(figsize=(6, 6))
         ax = sns.heatmap(visits, annot=True, cmap="coolwarm", linewidths=0.5)
-        ax.invert_yaxis()  # Flip so row 0 is on top
         plt.title("State Visit Heatmap")
         plt.xlabel("Taxi Column")
         plt.ylabel("Taxi Row")
@@ -490,7 +488,6 @@ def plot_taxi_state(state, should_save = False):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title("Taxi-v3 Environment Initial State", fontsize=14)
-        plt.gca().invert_yaxis()
         plt.grid(False)
         
         if not should_save:
