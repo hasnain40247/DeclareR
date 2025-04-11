@@ -40,7 +40,23 @@ Action move_e := 1
 Action move_s := 2
 Action move_w := 3
         """
+environment_definitions_frozen_lake="""
+Constant frozen_locs := [[0, 1], [0, 2], [0, 3], [1, 0], [1, 2], [2, 0], [2, 1], [2, 2], [3, 1], [3, 2]]
+Constant hole_locs := [[1, 1], [1, 3], [2, 3], [3, 0]]
 
+Factor position := S[0, 0]
+Factor row := position[0]
+Factor col := position[1]
+Factor state := row * 4 + col
+
+Proposition reached_goal := col == 3 && row == 3
+Proposition in_hole := position in hole_locs
+
+Action left := 0
+Action down := 1
+Action right := 2
+Action up := 3
+"""
 
 effect_prompt="""Your task is to translate natural language advice to RLang effect, which is a prediction about the
 state of the world or the reward function. For each instance, we provide a piece of advice in natural language,
@@ -240,4 +256,77 @@ Effect main:
         Reward -100
     else:
         Reward -1
+"""
+
+frozen_lake_policy_fewshots = """
+Advice = "If the agent is already at the goal, do nothing."
+Primitives = [reached_goal]
+Policy =
+Policy at_goal:
+    if reached_goal:
+        Do nothing
+
+Advice = "If the agent is above the goal, move down. If below, move up."
+Primitives = [row]
+Policy =
+Policy vertical_alignment:
+    if row < 3:
+        Execute down
+    elif row > 3:
+        Execute up
+
+Advice = "If the agent is left of the goal, move right. If right of the goal, move left."
+Primitives = [col]
+Policy =
+Policy horizontal_alignment:
+    if col < 3:
+        Execute right
+    elif col > 3:
+        Execute left
+
+Advice = "Prioritize horizontal alignment first, then vertical."
+Primitives = [row, col]
+Policy =
+Policy main:
+    if col < 3:
+        Execute right
+    elif row < 3:
+        Execute down
+"""
+
+
+frozen_lake_policy_fewshots = """
+Advice = "If the agent is already at the goal, do nothing."
+Primitives = [reached_goal]
+Policy =
+Policy at_goal:
+    if reached_goal:
+        Do nothing
+
+Advice = "If the agent is above the goal, move down. If below, move up."
+Primitives = [row]
+Policy =
+Policy vertical_alignment:
+    if row < 3:
+        Execute down
+    elif row > 3:
+        Execute up
+
+Advice = "If the agent is left of the goal, move right. If right of the goal, move left."
+Primitives = [col]
+Policy =
+Policy horizontal_alignment:
+    if col < 3:
+        Execute right
+    elif col > 3:
+        Execute left
+
+Advice = "Prioritize horizontal alignment first, then vertical."
+Primitives = [row, col]
+Policy =
+Policy main:
+    if col < 3:
+        Execute right
+    elif row < 3:
+        Execute down
 """

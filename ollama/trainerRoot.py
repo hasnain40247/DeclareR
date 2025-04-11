@@ -37,7 +37,7 @@ class MainApplication(ctk.CTk):
 
 
 if __name__ == "__main__":
-    app = MainApplication(env_name="cliff_walking")
+    app = MainApplication(env_name="frozen_lake")
     app.mainloop()
 
 
