@@ -1,12 +1,10 @@
 import matplotlib
 matplotlib.use = lambda *args, **kwargs: None
 
-import matplotlib.patches as patches
-from matplotlib.patches import Circle
-
+import numpy as np
+import matplotlib.pyplot as plt
 import seaborn as sns
 import shap
-import matplotlib.pyplot as plt
 from lime.lime_tabular import LimeTabularExplainer
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
@@ -17,6 +15,8 @@ import graphviz
 from sklearn.tree import export_graphviz
 import scipy.special
 from q_learning import RLangQLearningAgent
+import matplotlib.patches as patches
+from matplotlib.patches import Circle
 
 class GetExplainabilityPlotsForEnv:
     
@@ -91,7 +91,6 @@ class GetExplainabilityPlotsForEnv:
         """Runs one episode using the learned Q-table and logs the trajectory."""
         state = env.reset()[0]
         done = False
-
         trajectory = {
             "states": [],
             "actions": [],
@@ -110,20 +109,18 @@ class GetExplainabilityPlotsForEnv:
             state = next_state
 
         return trajectory
-    
-    def plot_action_trajectory(self, trajectory, filename="plots/episode_taxi_trajectory.png"):
-        """Plots the taxi's movement across the grid during one episode using env.locs."""
+
+    def plot_taxi_trajectory(self, trajectory, wall_locations, filename="plots/episode_taxi_trajectory.png"):
+        """Plots the taxi's movement across the grid during one episode using env.locs and wall data."""
 
         states = trajectory["states"]
         coords = []
         locs = {i: tuple(pos) for i, pos in enumerate(self.env.locs)}
 
-        # Decode all taxi positions
         for s in states:
             taxi_row, taxi_col, _, _ = self.env.decode(s)
             coords.append((taxi_row, taxi_col))
 
-        # Decode initial state for passenger and destination
         _, _, passenger_loc, destination = self.env.decode(states[0])
 
         fig, ax = plt.subplots(figsize=(6, 6))
@@ -133,15 +130,28 @@ class GetExplainabilityPlotsForEnv:
             ax.plot([0, 5], [i, i], color='black', linewidth=1)
             ax.plot([i, i], [0, 5], color='black', linewidth=1)
 
-        # Draw special locations (from env.locs)
+        # Draw special locations (R, G, Y, B)
         colors = ['red', 'green', 'yellow', 'blue']
         for i, (r, c) in locs.items():
             ax.add_patch(patches.Rectangle((c, 4 - r), 1, 1, edgecolor='black',
                                            facecolor=colors[i], alpha=0.3))
-            ax.text(c + 0.5, 4 - r + 0.5, '', ha='center', va='center', fontsize=12, weight='bold')
-            
-        #Draw the taxi on top
-        taxi_row, taxi_col, passenger_loc, destination = env.decode(states[0])
+
+        # Draw walls
+        for (r, c), direction in wall_locations:
+            x = c
+            y = 4 - r  # Flip row for plotting
+
+            if direction == "east":
+                ax.plot([x + 1, x + 1], [y, y + 1], color='black', linewidth=4)
+            elif direction == "west":
+                ax.plot([x, x], [y, y + 1], color='black', linewidth=4)
+            elif direction == "north":
+                ax.plot([x, x + 1], [y + 1, y + 1], color='black', linewidth=4)
+            elif direction == "south":
+                ax.plot([x, x + 1], [y, y], color='black', linewidth=4)
+
+        # Draw initial taxi position
+        taxi_row, taxi_col, _, _ = self.env.decode(states[0])
         ax.add_patch(patches.Circle((taxi_col + 0.5, 4 - taxi_row + 0.5), 0.3, color='orange', edgecolor='black', zorder=3))
         ax.text(taxi_col + 0.5, 4 - taxi_row + 0.5, 'Taxi', fontsize=10, ha='center', va='center', color='black', weight='bold', zorder=4)
 
@@ -150,7 +160,6 @@ class GetExplainabilityPlotsForEnv:
             pr, pc = locs[passenger_loc]
             ax.text(pc + 0.5, 4 - pr + 0.5, 'P', ha='center', va='center', fontsize=16, color='blue', weight='bold', zorder=4)
         else:
-            # Passenger is in the taxi
             taxi_row, taxi_col = coords[0]
             ax.text(taxi_col + 0.5, 4 - taxi_row + 0.8, 'P', ha='center', va='center', fontsize=16, color='blue', weight='bold', zorder=5)
 
@@ -162,14 +171,9 @@ class GetExplainabilityPlotsForEnv:
         for i, (r, c) in enumerate(coords):
             y_center = 4 - r + 0.5
             x_center = c + 0.5
-
-            # Offset to top-left within cell
             x_topleft = x_center - 0.3
             y_topleft = y_center + 0.3
-
             ax.add_patch(Circle((x_topleft, y_topleft), 0.08, color='blue', alpha=0.6, zorder=3))
-
-
 
         # Final formatting
         ax.set_xlim(0, 5)
@@ -180,6 +184,9 @@ class GetExplainabilityPlotsForEnv:
         plt.tight_layout()
         plt.savefig(filename)
         plt.close()
+
+
+
 
 
     def plot_trajectory_state_visits(self, trajectory):
@@ -214,20 +221,22 @@ class GetExplainabilityPlotsForEnv:
 
     def visualize_policy(self):
         """Visualizes the learned policy for the Taxi-v3 environment."""
-        
-        grid_size = (self.grid_size, self.grid_size)
-        policy_grid = np.full(grid_size, " ", dtype="<U2")  # Initialize empty grid
+
+        grid_size = 5  # Taxi-v3 environment grid is 5x5
+        policy_grid = np.full((grid_size, grid_size), " ", dtype="<U2")  # Initialize empty grid
 
         # Extract optimal actions for each taxi position
-        for state in range(self.state_dim):  # 500 states in Taxi-v3
+        for state in range(self.state_dim):
             taxi_row, taxi_col, pass_loc, dest_loc = self.env.decode(state)
-            best_action = np.argmax(self.Q_table[state, :])  # Get best action from Q-table
+            best_action = np.argmax(self.Q_table[state, :])
             policy_grid[taxi_row, taxi_col] = self.action_symbols[best_action]
 
         plt.figure(figsize=(6, 6))
-        plt.imshow(np.zeros(grid_size), cmap="Blues", vmin=-1, vmax=1)
-        for row in range(grid_size[0]):
-            for col in range(grid_size[1]):
+        plt.imshow(np.zeros((grid_size, grid_size)), cmap="Blues", vmin=-1, vmax=1)
+
+        # Display action symbols on the grid
+        for row in range(grid_size):
+            for col in range(grid_size):
                 plt.text(col, row, policy_grid[row, col], ha='center', va='center', fontsize=14, color='black')
 
         plt.title("Policy Visualization")
@@ -260,7 +269,7 @@ class GetExplainabilityPlotsForEnv:
     
     def get_state_representation(self, state_index):
         taxi_row, taxi_col, passenger_loc, destination = self.env.decode(state_index)
-        return (taxi_row, taxi_col, passenger_loc, destination)
+        return (taxi_row, taxi_col, env.locs[passenger_loc], env.locs[destination])
 
     def plot_probability_heatmap(self):
         """Plots a heatmap of predicted probabilities for each state-action pair."""
@@ -337,80 +346,113 @@ class GetExplainabilityPlotsForEnv:
         graph.render("plots/decision_tree")  # Generates decision tree as a pdf file
         graph.view()
         
-class LimeExplainer:
-    def __init__(self, env, Q_table):
-        self.env = env
-        self.Q_table = Q_table
-        self.state_dim = env.observation_space.n
-        self.action_dim = env.action_space.n
-        self.action_labels = ["South", "North", "East", "West", "Pickup", "Dropoff"]
-        self.action_symbols = {
-            0: "South",  
-            1: "North",  
-            2: "East",  
-            3: "West",  
-            4: "Pickup",  
-            5: "Dropoff"
-        }
 
-    def softmax_with_temperature(self, x, temperature=0.1):
+class LimeExplainer:
+    def __init__(self, env, Q_table, walls):
+        self.env = env
+        self.walls = walls
+        self.Q_table = Q_table
+        self.state_dim = 500  # assuming a predefined state space dimension
+        self.action_labels = ["north", "south", "east", "west", "pickup", "dropoff"]
+
+    def state_to_features(self, state):
+        """ Convert state to features (example implementation) """
+        taxi_row, taxi_col, passenger, destination = self.env.decode(state)
+        return [taxi_row, taxi_col, passenger, destination]
+    
+    def softmax_with_temperature(self, x, temperature=1.0):
         """Softmax with temperature scaling."""
         exp_values = np.exp(x / temperature)
         return exp_values / np.sum(exp_values)
 
-    def state_to_features(self, state):
-        """Convert Taxi-v3 state index to (row, col, passenger, destination)."""
-        taxi_row, taxi_col, passenger, destination = self.env.decode(state)
-        return np.array([taxi_row, taxi_col, passenger, destination])
 
-    def predict_fn(self):
-        """Generate prediction function that outputs action probabilities."""
+    def predict_fn(self, epsilon=0.1):
+        """Generate prediction function that outputs action probabilities using epsilon-greedy policy."""
+
+        def bin_feature(value, bins):
+            """Assign a value to a specific bin."""
+            for i in range(len(bins) - 1):
+                if bins[i] <= value < bins[i+1]:
+                    return i
+            return len(bins) - 1  # If the value is in the last bin
+
         def predict(x):
             scores = []
+
+            # Define your custom bins for each feature (adjust as per your requirement)
+            taxi_row_bins = [0, 1, 2, 3, 4]  # 0-1 -> bin 1, 1-2 -> bin 2, etc.
+            taxi_col_bins = [0, 1, 2, 3, 4]
+            passenger_bins = [0, 1, 2, 3, 4]
+            destination_bins = [0, 1, 2, 3]
+
             for sample in x:
                 taxi_row, taxi_col, passenger, destination = map(int, sample)
-                taxi_row = int(min(max(taxi_row, 0), 4))
-                taxi_col = int(min(max(taxi_col, 0), 4))
-                passenger = int(min(max(passenger, 0), 4))
-                destination = int(min(max(destination, 0), 3))
 
+                # Discretize each feature using the defined bins
+                taxi_row = bin_feature(taxi_row, taxi_row_bins)
+                taxi_col = bin_feature(taxi_col, taxi_col_bins)
+                passenger = bin_feature(passenger, passenger_bins)
+                destination = bin_feature(destination, destination_bins)
+
+                # Encode the state using the environment
                 state = self.env.encode(taxi_row, taxi_col, passenger, destination)
+
+                # Fetch the Q-values for the state (in case you want to compute the probabilities)
                 q_values = self.Q_table[state]
+
+                # Apply softmax to get action probabilities (if needed)
                 probabilities = self.softmax_with_temperature(q_values)
+
                 scores.append(probabilities)
-            return np.array(scores)
+
+            return np.array(scores)  # Only return the action probabilities (no tuple)
+
         return predict
-    
+
     def generate_lime_explanation_for_chosen_action(self, state_to_explain=62):
-        """Generate a LIME explanation for the greedy action at the given state."""
+        """ Generate a LIME explanation for the greedy action at the given state """
         
-        plot_taxi_state(state_to_explain)
+        plot_taxi_state(state_to_explain, self.walls)
         
         # Get the best action for the state (max Q-value)
         best_action = np.argmax(self.Q_table[state_to_explain])
 
-        # Create the LIME explainer
+        # Define custom bin edges for each feature
+        bin_edges = {
+            'taxi_row': [0, 1, 2, 3, 4],  # bins 0, 1, 2, 3
+            'taxi_col': [0, 1, 2, 3, 4],  # bins 0, 1, 2, 3
+            'passenger': [0, 1, 2, 3, 4],  # bins 0, 1, 2, 3
+            'destination': [0, 1, 2, 3]    # bins 0, 1, 2
+        }
+
+        # Create the LIME explainer with custom binning
         explainer = LimeTabularExplainer(
             training_data=np.array([self.state_to_features(s) for s in range(self.state_dim)]),
-            feature_names=["taxi_row", "taxi_col", "passenger", "destination"], # Features are row and column in the grid
-            class_names=self.action_labels,  # Action names are correctly passed
-            discretize_continuous=False
+            feature_names=["taxi_row", "taxi_col", "passenger", "destination"],
+            class_names=self.action_labels,
+            discretize_continuous=False,  # Enable binning
         )
         
+        # Get the predict function
+        predict_function = self.predict_fn()
+
+        # Ensure input is a 2D array (reshape if needed)
+        state_features = np.array([self.state_to_features(state_to_explain)])
+        
+        # Make sure to modify the predict_fn to handle epsilon-greedy with proper discretization
         explanation = explainer.explain_instance(
-            self.state_to_features(state_to_explain),
-            self.predict_fn(),
-            labels=[best_action], 
-            num_features=4
+            state_features[0],
+            predict_function,
+            labels=[best_action],
+            num_features=4,
+            num_samples=1000
         )
+
                 
-        print(f"Env locations for State {env.locs}:")
-
-        # Show feature-wise contributions for the chosen action
-        print(f"\nExplanation for State:{state_to_explain} Action {best_action} ({self.action_symbols[best_action]}):")
+        print(f"Env locations for State {self.env.locs}:")
+        print(f"\nExplanation for State:{state_to_explain} Action {best_action} ({self.action_labels[best_action]}):")
         explanation.show_in_notebook()
-
-
+        
 
 def get_policy(env, Q_table):
     policy = {}
@@ -439,7 +481,21 @@ def convert_q_table(agent):
     
     return Q_table
 
-def plot_taxi_state(state, should_save = False):
+def get_walls():
+    wall_locations = []
+    for row in range(5):
+        for col in range(5):
+            for action, direction in enumerate(['south', 'north', 'east', 'west']):
+                state = env.encode(row, col, 0, 1)  # arbitrary passenger/dest
+                transitions = env.P[state][action]
+                for prob, next_state, _, _ in transitions:
+                    next_row, next_col, _, _ = env.decode(next_state)
+                    if (next_row, next_col) == (row, col):  # no movement => obstacle
+                        wall_locations.append(((row, col), direction))
+
+    return wall_locations
+
+def plot_taxi_state(state, walls, should_save = False):
         locs = {
             0: (0, 0),  # R
             1: (0, 4),  # G
@@ -465,6 +521,21 @@ def plot_taxi_state(state, should_save = False):
             ax.add_patch(patches.Rectangle((c, 4 - r), 1, 1, edgecolor='black',
                                            facecolor=colors[label], alpha=0.3))
             ax.text(c + 0.5, 4 - r + 0.5, "", ha='center', va='center', fontsize=12, weight='bold', zorder=2)
+        
+        # Draw walls
+        for (r, c), direction in walls:
+            x = c
+            y = 4 - r  # Flip row for plotting
+
+            if direction == "east":
+                ax.plot([x + 1, x + 1], [y, y + 1], color='black', linewidth=4)
+            elif direction == "west":
+                ax.plot([x, x], [y, y + 1], color='black', linewidth=4)
+            elif direction == "north":
+                ax.plot([x, x + 1], [y + 1, y + 1], color='black', linewidth=4)
+            elif direction == "south":
+                ax.plot([x, x + 1], [y, y], color='black', linewidth=4)
+
 
         # Draw the taxi on top
         ax.add_patch(patches.Circle((taxi_col + 0.5, 4 - taxi_row + 0.5), 0.3, color='orange', edgecolor='black', zorder=3))
@@ -496,9 +567,7 @@ def plot_taxi_state(state, should_save = False):
             plt.tight_layout()
             plt.savefig("plots/initial_env_state.png")
             plt.close()
-
-
-
+            
 if __name__ == '__main__':
     
     env = gym.make("Taxi-v3")
@@ -509,6 +578,7 @@ if __name__ == '__main__':
     rewards_with_policy = agent_with_policy.train(episodes=15000)
     
     Q_table = convert_q_table(agent_with_policy)
+    walls = get_walls()
 
     policy, states, actions = get_policy(env, Q_table)
     explainability = GetExplainabilityPlotsForEnv(env, Q_table, policy, states, actions)
@@ -524,10 +594,10 @@ if __name__ == '__main__':
 
     trajectory = explainability.run_episode(Q_table, env)
 
-    explainability.plot_action_trajectory(trajectory)
+    explainability.plot_taxi_trajectory(trajectory, walls)
     explainability.plot_trajectory_state_visits(trajectory)
     explainability.plot_trajectory_rewards(trajectory)
 
-    lime_explainer = LimeExplainer(env, Q_table)
+    lime_explainer = LimeExplainer(env, Q_table, walls)
 
-    lime_explainer.generate_lime_explanation_for_chosen_action(state_to_explain=1)
+    lime_explainer.generate_lime_explanation_for_chosen_action(state_to_explain=342)
