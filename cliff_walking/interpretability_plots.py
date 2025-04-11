@@ -2,6 +2,8 @@ import matplotlib
 matplotlib.use = lambda *args, **kwargs: None
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
 import seaborn as sns
 import shap
 from lime.lime_tabular import LimeTabularExplainer
@@ -18,6 +20,7 @@ import scipy.special
 import numpy as np
 from q_learning import RLangQLearningAgent
 from sklearn.preprocessing import LabelEncoder
+
         
 def decode_state(state_index):
     """Decodes the state index into a row and column (in a grid)."""
@@ -101,31 +104,74 @@ class GetExplainabilityPlotsForEnv:
         while not done:
             action = np.argmax(Q_table[state, :])  # Always take the best action
             next_state, reward, done, _, _ = env.step(action)
-
             # Log data
             trajectory["states"].append(state)
             trajectory["actions"].append(action)
             trajectory["rewards"].append(reward)
 
             state = next_state
+        
+        trajectory["states"].append(next_state)
+        trajectory["actions"].append(action)
+        _, reward, _, _, _ = env.step(action)
+        print(reward)
+        trajectory["rewards"].append(reward)
 
         return trajectory
-    
-    def plot_action_trajectory(self, trajectory):
-        """Plots the action trajectory over time."""
-        actions = trajectory["actions"]
 
-        plt.figure(figsize=(10, 3))
-        plt.step(range(len(actions)), actions, where='mid', linestyle='-', marker='o', color='r')
-        plt.yticks(range(self.action_dim), self.action_labels)
-        plt.xlabel("Time Step")
-        plt.ylabel("Action")
-        plt.title("Action Trajectory Over Time")
-        plt.grid()
+    def plot_action_trajectory(self, trajectory, filename="plots/episode_cliff_trajectory.png"):
+        """Plots the CliffWalking agent's movement across the grid during one episode."""
+
+        states = trajectory["states"]
+        coords = []
+        grid_rows = 4  # Height of the grid (4 rows)
+        grid_cols = 12  # Width of the grid (12 columns)
+        # Decode all agent positions (state -> row, col)
+        for s in states:
+            row, col = s // grid_cols, s % grid_cols
+            coords.append((row, col))
+
+        # Define cliff locations (all cells in bottom row except start and goal)
+        cliff_locs = [(3, c) for c in range(1, grid_cols - 1)]  # Cliff is in the bottom-most row (3rd row)
+        start_loc = (3, 0)  # Start location (bottom-left corner)
+        goal_loc = (3, grid_cols - 1)  # Goal location (bottom-right corner)
+
+        fig, ax = plt.subplots(figsize=(grid_cols, grid_rows))
+
+        # Draw grid lines (vertical and horizontal)
+        for i in range(grid_rows + 1):
+            ax.plot([0, grid_cols], [i, i], color='black', linewidth=1)  # Horizontal grid lines
+        for i in range(grid_cols + 1):
+            ax.plot([i, i], [0, grid_rows], color='black', linewidth=1)  # Vertical grid lines
+
+        # Draw cliff locations (gray for cliff, in bottom-most row)
+        for r, c in cliff_locs:
+            ax.add_patch(patches.Rectangle((c, grid_rows - 1 - r), 1, 1, edgecolor='black', facecolor='gray', alpha=0.7))
+
+        # Draw start location (blue for start)
+        ax.add_patch(patches.Rectangle((start_loc[1], grid_rows - 1 - start_loc[0]), 1, 1, edgecolor='black', facecolor='blue', alpha=0.5))
+        ax.text(start_loc[1] + 0.5, grid_rows - 1 - start_loc[0] + 0.5, "S", ha="center", va="center", fontsize=12, weight='bold', zorder=3)
+
+        # Draw goal location (green for goal)
+        ax.add_patch(patches.Rectangle((goal_loc[1], grid_rows - 1 - goal_loc[0]), 1, 1, edgecolor='black', facecolor='green', alpha=0.5))
+        ax.text(goal_loc[1] + 0.5, grid_rows - 1 - goal_loc[0] + 0.5, "G", ha="center", va="center", fontsize=12, weight='bold', zorder=3)
+
+        # Draw agent's path (orange circles showing the agent's movement)
+        for i, (r, c) in enumerate(coords):
+            ax.add_patch(patches.Circle((c + 0.5, grid_rows - 1 - r + 0.5), 0.3, color='orange', edgecolor='black', alpha=0.6, zorder=4))
+
+        # Final formatting
+        ax.set_xlim(0, grid_cols)
+        ax.set_ylim(0, grid_rows)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title("CliffWalking Agent Movement Trajectory")
+
         plt.tight_layout()
-        plt.savefig("plots/episode_action_trajectory.png")
+        plt.savefig(filename)
         plt.close()
 
+        
     def plot_trajectory_state_visits(self, trajectory):
         """Plots the state visit heatmap."""
         visits = np.zeros((4, 12))  # CliffWalking grid size is 4x12
@@ -346,7 +392,7 @@ class LimeExplainer:
 
     def generate_lime_explanations(self, state_to_explain):
         """Generate LIME explanations for the best action at the chosen state."""
-        
+        plot_cliff_state(state_to_explain)
         # Get the best action for the state (max Q-value)
         best_action = np.argmax(self.Q_table[state_to_explain])
 
@@ -372,7 +418,7 @@ class LimeExplainer:
     def print_lime_explanations(self, explanation, best_action, state_to_explain):
         """Print the LIME explanations and show the plot."""
         print(f"Explanation for State:{state_to_explain} Best Action {best_action} ({self.action_symbols[best_action]}):")
-        explanation.as_pyplot_figure()
+        explanation.show_in_notebook()  # For notebook-based environments
 
 def get_policy(env, Q_table):
     policy = {}
@@ -403,6 +449,61 @@ def convert_q_table(agent):
             Q_table[state, action] = agent.q_table[state][action]
     
     return Q_table
+
+
+def plot_cliff_state(state, should_save=False):
+
+    grid_rows = 4  # Height of the grid (4 rows)
+    grid_cols = 12  # Width of the grid (12 columns)
+
+    # Define cliff locations (all cells in bottom row except start and goal)
+    cliff_locs = [(3, c) for c in range(1, grid_cols - 1)]  # Cliff is in the bottom-most row (3rd row)
+    start_loc = (3, 0)  # Start location (bottom-left corner)
+    goal_loc = (3, grid_cols - 1)  # Goal location (bottom-right corner)
+
+    fig, ax = plt.subplots(figsize=(grid_cols, grid_rows))
+
+    # Draw grid lines (vertical and horizontal)
+    for i in range(grid_rows + 1):
+        ax.plot([0, grid_cols], [i, i], color='black', linewidth=1)  # Horizontal grid lines
+    for i in range(grid_cols + 1):
+        ax.plot([i, i], [0, grid_rows], color='black', linewidth=1)  # Vertical grid lines
+
+    # Draw cliff locations (gray for cliff, in bottom-most row)
+    for r, c in cliff_locs:
+        ax.add_patch(patches.Rectangle((c, grid_rows - 1 - r), 1, 1, edgecolor='black', facecolor='gray', alpha=0.7))
+
+    # Draw start location (blue for start)
+    ax.add_patch(patches.Rectangle((start_loc[1], grid_rows - 1 - start_loc[0]), 1, 1, edgecolor='black', facecolor='blue', alpha=0.5))
+    ax.text(start_loc[1] + 0.5, grid_rows - 1 - start_loc[0] + 0.5, "S", ha="center", va="center", fontsize=12, weight='bold', zorder=3)
+
+    # Draw goal location (green for goal)
+    ax.add_patch(patches.Rectangle((goal_loc[1], grid_rows - 1 - goal_loc[0]), 1, 1, edgecolor='black', facecolor='green', alpha=0.5))
+    ax.text(goal_loc[1] + 0.5, grid_rows - 1 - goal_loc[0] + 0.5, "G", ha="center", va="center", fontsize=12, weight='bold', zorder=3)
+    
+    grid_width = 12
+    row = state // grid_width
+    col = state % grid_width
+
+    # Drawing the agent's current position with an orange rectangle
+    ax.add_patch(patches.Rectangle((col, grid_rows - 1 - row), 1, 1, edgecolor='black', facecolor='orange', alpha=0.5))
+
+    # Add text for the agent's position (optional)
+    ax.text(col + 0.5, grid_rows - 1 - row + 0.5, "C", ha="center", va="center", fontsize=12, weight='bold', zorder=3)
+
+    # Final formatting
+    ax.set_xlim(0, grid_cols)
+    ax.set_ylim(0, grid_rows)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title("CliffWalking Current State")
+
+    if not should_save:
+        plt.show()
+    else:
+        plt.tight_layout()
+        plt.savefig("plots/cliff_state.png")
+        plt.close()
 
 
 if __name__ == '__main__':

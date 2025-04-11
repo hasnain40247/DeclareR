@@ -1,6 +1,9 @@
 import matplotlib
 matplotlib.use = lambda *args, **kwargs: None
 
+import matplotlib.patches as patches
+from matplotlib.patches import Circle
+
 import seaborn as sns
 import shap
 import matplotlib.pyplot as plt
@@ -108,20 +111,77 @@ class GetExplainabilityPlotsForEnv:
 
         return trajectory
     
-    def plot_action_trajectory(self, trajectory):
-        """Plots the action trajectory over time."""
-        actions = trajectory["actions"]
+    def plot_action_trajectory(self, trajectory, filename="plots/episode_taxi_trajectory.png"):
+        """Plots the taxi's movement across the grid during one episode using env.locs."""
 
-        plt.figure(figsize=(10, 3))
-        plt.step(range(len(actions)), actions, where='mid', linestyle='-', marker='o', color='r')
-        plt.yticks(range(self.action_dim), self.action_labels)
-        plt.xlabel("Time Step")
-        plt.ylabel("Action")
-        plt.title("Action Trajectory Over Time")
-        plt.grid()
+        states = trajectory["states"]
+        coords = []
+        locs = {i: tuple(pos) for i, pos in enumerate(self.env.locs)}
+
+        # Decode all taxi positions
+        for s in states:
+            taxi_row, taxi_col, _, _ = self.env.decode(s)
+            coords.append((taxi_row, taxi_col))
+
+        # Decode initial state for passenger and destination
+        _, _, passenger_loc, destination = self.env.decode(states[0])
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        # Draw 5x5 grid
+        for i in range(6):
+            ax.plot([0, 5], [i, i], color='black', linewidth=1)
+            ax.plot([i, i], [0, 5], color='black', linewidth=1)
+
+        # Draw special locations (from env.locs)
+        colors = ['red', 'green', 'yellow', 'blue']
+        for i, (r, c) in locs.items():
+            ax.add_patch(patches.Rectangle((c, 4 - r), 1, 1, edgecolor='black',
+                                           facecolor=colors[i], alpha=0.3))
+            ax.text(c + 0.5, 4 - r + 0.5, '', ha='center', va='center', fontsize=12, weight='bold')
+            
+        #Draw the taxi on top
+        taxi_row, taxi_col, passenger_loc, destination = env.decode(states[0])
+        ax.add_patch(patches.Circle((taxi_col + 0.5, 4 - taxi_row + 0.5), 0.3, color='orange', edgecolor='black', zorder=3))
+        ax.text(taxi_col + 0.5, 4 - taxi_row + 0.5, 'Taxi', fontsize=10, ha='center', va='center', color='black', weight='bold', zorder=4)
+
+        # Draw passenger
+        if passenger_loc < 4:
+            pr, pc = locs[passenger_loc]
+            ax.text(pc + 0.5, 4 - pr + 0.5, 'P', ha='center', va='center', fontsize=16, color='blue', weight='bold', zorder=4)
+        else:
+            # Passenger is in the taxi
+            taxi_row, taxi_col = coords[0]
+            ax.text(taxi_col + 0.5, 4 - taxi_row + 0.8, 'P', ha='center', va='center', fontsize=16, color='blue', weight='bold', zorder=5)
+
+        # Draw destination
+        dr, dc = locs[destination]
+        ax.text(dc + 0.5, 4 - dr + 0.5, 'D', ha='center', va='center', fontsize=16, color='red', weight='bold', zorder=4)
+
+        # Plot taxi path
+        for i, (r, c) in enumerate(coords):
+            y_center = 4 - r + 0.5
+            x_center = c + 0.5
+
+            # Offset to top-left within cell
+            x_topleft = x_center - 0.3
+            y_topleft = y_center + 0.3
+
+            ax.add_patch(Circle((x_topleft, y_topleft), 0.08, color='blue', alpha=0.6, zorder=3))
+
+
+
+        # Final formatting
+        ax.set_xlim(0, 5)
+        ax.set_ylim(0, 5)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title("Taxi Movement Trajectory")
+        plt.gca().invert_yaxis()
         plt.tight_layout()
-        plt.savefig("plots/episode_action_trajectory.png")
+        plt.savefig(filename)
         plt.close()
+
 
     def plot_trajectory_state_visits(self, trajectory):
         """Plots the state visit heatmap."""
@@ -131,13 +191,15 @@ class GetExplainabilityPlotsForEnv:
             visits[taxi_row, taxi_col] += 1 
 
         plt.figure(figsize=(6, 6))
-        sns.heatmap(visits, annot=True, cmap="coolwarm", linewidths=0.5)
+        ax = sns.heatmap(visits, annot=True, cmap="coolwarm", linewidths=0.5)
+        ax.invert_yaxis()  # Flip so row 0 is on top
         plt.title("State Visit Heatmap")
         plt.xlabel("Taxi Column")
         plt.ylabel("Taxi Row")
         plt.tight_layout()
         plt.savefig("plots/episode_statevisits_trajectory.png")
         plt.close()
+
 
     def plot_trajectory_rewards(self, trajectory):
         """Plots the reward trajectory over time."""
@@ -323,7 +385,8 @@ class LimeExplainer:
     
     def generate_lime_explanation_for_chosen_action(self, state_to_explain=62):
         """Generate a LIME explanation for the greedy action at the given state."""
-
+        
+        plot_taxi_state(state_to_explain)
         
         # Get the best action for the state (max Q-value)
         best_action = np.argmax(self.Q_table[state_to_explain])
@@ -377,6 +440,65 @@ def convert_q_table(agent):
             Q_table[state, action] = agent.q_table[state][action]
     
     return Q_table
+
+def plot_taxi_state(state, should_save = False):
+        locs = {
+            0: (0, 0),  # R
+            1: (0, 4),  # G
+            2: (4, 0),  # Y
+            3: (4, 3),  # B
+        }
+        
+        taxi_row, taxi_col, passenger_loc, destination = env.decode(state)
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        # Draw grid
+        for i in range(6):
+            ax.plot([0, 5], [i, i], color='black', linewidth=1)
+            ax.plot([i, i], [0, 5], color='black', linewidth=1)
+
+        # Draw special locations
+        label_map = {0: 'R', 1: 'G', 2: 'Y', 3: 'B'}
+        colors = {'R': 'red', 'G': 'green', 'Y': 'yellow', 'B': 'blue'}
+
+        for loc, (r, c) in locs.items():
+            label = label_map[loc]
+            ax.add_patch(patches.Rectangle((c, 4 - r), 1, 1, edgecolor='black',
+                                           facecolor=colors[label], alpha=0.3))
+            ax.text(c + 0.5, 4 - r + 0.5, "", ha='center', va='center', fontsize=12, weight='bold', zorder=2)
+
+        # Draw the taxi on top
+        ax.add_patch(patches.Circle((taxi_col + 0.5, 4 - taxi_row + 0.5), 0.3, color='orange', edgecolor='black', zorder=3))
+        ax.text(taxi_col + 0.5, 4 - taxi_row + 0.5, 'Taxi', fontsize=10, ha='center', va='center', color='black', weight='bold', zorder=4)
+
+        # Draw passenger
+        if passenger_loc < 4:
+            pr, pc = locs[passenger_loc]
+            ax.text(pc + 0.5, 4-pr + 0.5, 'P', ha='center', va='center', fontsize=16, color='blue', weight='bold', zorder=4)
+        else:
+            # Passenger is in the taxi
+            ax.text(taxi_col + 0.5, 4 - taxi_row + 0.8, 'P in taxi', ha='center', va='center', fontsize=16, color='blue', weight='bold', zorder=5)
+
+        # Draw destination
+        dr, dc = locs[destination]
+        ax.text(dc + 0.5, 4 - dr + 0.5, 'D', ha='center', va='center', fontsize=16, color='red', weight='bold', zorder=4)
+
+       
+        ax.set_xlim(0, 5)
+        ax.set_ylim(0, 5)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title("Taxi-v3 Environment Initial State", fontsize=14)
+        plt.gca().invert_yaxis()
+        plt.grid(False)
+        
+        if not should_save:
+            plt.show()
+        else:
+            plt.tight_layout()
+            plt.savefig("plots/initial_env_state.png")
+            plt.close()
 
 
 
