@@ -49,19 +49,16 @@ class RLangQLearningAgent(BaseRLangQLearningAgent):
 
 if __name__ == '__main__':
     env = gym.make("Taxi-v3")
-    # agent = RLangQLearningAgent(env,env_name="taxi")
-    # rewards = agent.train(episodes=10000)
-    # print(f"Training complete. Average reward: {agent.test(10)}")
-    #     np.set_printoptions(threshold=np.inf) 
-
+ 
     knowledge = rlang.parse_file("./taxi.rlang")
     agent_with_policy = RLangQLearningAgent(env, knowledge=knowledge)
-    rewards_with_policy = agent_with_policy.train(episodes=15000)
-    # print(f"Training complete. Average reward: {agent_with_policy.test(10)}")
-    # agent = RLangQLearningAgent(env)
-    # rewards = agent.train(episodes=15000)
+    rewards_with_policy = agent_with_policy.train(episodes=800)
+    agent = RLangQLearningAgent(env,knowledge=None)
+    rewards = agent.train(episodes=800)
+    # print(f"Training complete. policy Average reward: {agent_with_policy.test(10)}")
+
     # print(f"Training complete. Average reward: {agent.test(10)}")
-    # agent.plot_training_rewards(rewards_with_policy,save_path="./plots/q_learning_training_rewards_knowledge.png")
-    # agent.plot_training_rewards(rewards,save_path="./plots/q_learning_training_rewards.png")
+    agent.plot_training_rewards(rewards_with_policy,save_path="2q_learning_training_rewards_knowledge.png")
+    agent.plot_training_rewards(rewards,save_path="2q_learning_training_rewards.png")
 
 
