@@ -1,5 +1,5 @@
 [LOG] Parsing file: policy.rlang
-[LOG] Policy Function → <Policy [STATE]->[ACTION] "climb_safely">
+[LOG] Policy Function → <Policy [STATE]->[ACTION] "escape_cliff">
 [LOG] Beginning policy execution logging...
 
 [LOG] State=[0, 0], Action={}
@@ -38,15 +38,15 @@
 [LOG] State=[9, 2], Action={}
 [LOG] State=[10, 2], Action={}
 [LOG] State=[11, 2], Action={}
-[LOG] State=[0, 3], Action={Action([0]): 1.0}
-[LOG] State=[1, 3], Action={}
-[LOG] State=[2, 3], Action={}
-[LOG] State=[3, 3], Action={}
-[LOG] State=[4, 3], Action={}
-[LOG] State=[5, 3], Action={}
-[LOG] State=[6, 3], Action={}
-[LOG] State=[7, 3], Action={}
-[LOG] State=[8, 3], Action={}
-[LOG] State=[9, 3], Action={}
-[LOG] State=[10, 3], Action={}
+[LOG] State=[0, 3], Action={}
+[LOG] State=[1, 3], Action={Action([0]): 1.0}
+[LOG] State=[2, 3], Action={Action([0]): 1.0}
+[LOG] State=[3, 3], Action={Action([0]): 1.0}
+[LOG] State=[4, 3], Action={Action([0]): 1.0}
+[LOG] State=[5, 3], Action={Action([0]): 1.0}
+[LOG] State=[6, 3], Action={Action([0]): 1.0}
+[LOG] State=[7, 3], Action={Action([0]): 1.0}
+[LOG] State=[8, 3], Action={Action([0]): 1.0}
+[LOG] State=[9, 3], Action={Action([0]): 1.0}
+[LOG] State=[10, 3], Action={Action([0]): 1.0}
 [LOG] State=[11, 3], Action={}

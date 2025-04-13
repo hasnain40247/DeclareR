@@ -16,6 +16,6 @@ Action move_e := 1
 Action move_s := 2
 Action move_w := 3
 
-Policy climb_safely:
-    if x == 0 and y == 3:
+Policy escape_cliff:
+    if is_on_cliff:
         Execute move_n

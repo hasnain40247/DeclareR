@@ -11,7 +11,8 @@ import json
 from PIL import Image, ImageTk
 from llm_agents.ReasoningAgent import ReasoningAgent
 from reasoningBotFrame import ReasoningBotFrame
-
+import time
+from constants import reasoning_fewshots
 HYPERPARAMETERS = {
     "Q-Learning": {
         "alpha": 0.9,
@@ -42,6 +43,71 @@ HYPERPARAMETERS = {
 }
 
 
+
+# Taxi-v3 Constants
+color_locations = {
+    0: ('R', (0, 0)),
+    1: ('G', (0, 4)),
+    2: ('Y', (4, 0)),
+    3: ('B', (4, 3)),
+    4: ('In taxi', None)
+}
+
+destination_locations = {
+    0: ('R', (0, 0)),
+    1: ('G', (0, 4)),
+    2: ('Y', (4, 0)),
+    3: ('B', (4, 3))
+}
+
+actions = {
+    0: 'South',
+    1: 'North',
+    2: 'East',
+    3: 'West',
+    4: 'Pickup',
+    5: 'Dropoff'
+}
+
+# Decoding function
+def decode_state(state):
+    destination = state % 4
+    state //= 4
+    
+    passenger_location = state % 5
+    state //= 5
+    
+    taxi_col = state % 5
+    state //= 5
+    
+    taxi_row = state
+    
+    return taxi_row, taxi_col, passenger_location, destination
+
+# Function to generate human-readable input
+def generate_input(state, action):
+    taxi_row, taxi_col, passenger_location, destination = decode_state(state)
+    
+    # Taxi info
+    taxi_position = f"Taxi at ({taxi_row}, {taxi_col})"
+    
+    # Passenger info
+    if passenger_location == 4:
+        passenger_position = "passenger is in the taxi"
+    else:
+        loc_name, loc_coords = color_locations[passenger_location]
+        passenger_position = f"passenger at {loc_name} {loc_coords}"
+    
+    # Destination info
+    dest_name, dest_coords = destination_locations[destination]
+    destination_position = f"destination is {dest_name} {dest_coords}"
+    
+    # Action info
+    action_taken = actions[action]
+    
+    # Final output
+    return f"State: {taxi_position}, {passenger_position}, {destination_position}. Action Taken: {action} ({action_taken})"
+
 class RenderScene(ctk.CTkFrame):
     def __init__(self, parent,env_name, algorithm_name):
         super().__init__(parent, fg_color="#FFFDF0")
@@ -55,7 +121,8 @@ class RenderScene(ctk.CTkFrame):
         else:
             self.env = gym.make("CliffWalking-v0", render_mode="rgb_array")
 
-
+        # with open(f"./taxi/training_details.json","r") as f:
+        #         self.q_table=json.load(f)[-1]["q_table"]
 
         title=self.env_name[0].upper()+self.env_name[1:]
         self.pack(fill="both", expand=True)
@@ -344,9 +411,12 @@ class RenderScene(ctk.CTkFrame):
         self.display_label.pack(pady=10, expand=True)
 
         # Create a ChatFrame and add it beside the environment display in the row
-        agent=ReasoningAgent()
+        agent=ReasoningAgent(fewshots=reasoning_fewshots)
         agent.start_ollama_serve()
-        self.chat_frame = ReasoningBotFrame(self.row_frame,agent)
+
+        # self.chat_frame = ReasoningBotFrame(self.row_frame,agent)
+        self.chat_frame = ReasoningBotFrame(self.row_frame, agent, controller=self)
+
         self.chat_frame.pack(side="right", padx=20, pady=20, fill="both", expand=True)
 
             
@@ -400,7 +470,14 @@ class RenderScene(ctk.CTkFrame):
             self.display_label.configure(image=photo)
             self.display_label.image = photo
             
- 
+    def next_pressed(self):
+  
+          
+        self.after(100, self.run_step, self.episode, self.step, self.observation, self.episode_reward, self.total_reward_sum, self.done, self.terminated, self.truncated)
+
+        print("jello")
+  
+
 
     def run_episode(self, episode, total_reward_sum):
         self.status_label.configure(text=f"Running Test Episode {episode}/5")
@@ -429,6 +506,7 @@ class RenderScene(ctk.CTkFrame):
             del self.display_label
 
     def run_step(self, episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated):
+        
         if done:
             total_reward_sum += episode_reward
             if episode < 2:
@@ -441,17 +519,70 @@ class RenderScene(ctk.CTkFrame):
 
 
         state = observation
+        
       
-        action = np.argmax(self.q_table[state])  # Choose action with max Q-value
+        action = np.argmax(self.q_table[state])  
        
         observation, reward, terminated, truncated, info = self.env.step(action)
 
         step += 1
         episode_reward += reward
         self.update_display(self.env.render())
+        human_input = generate_input(state, action)
+        print(human_input)
+     
+        if hasattr(self, 'chat_frame') and self.chat_frame:
+            self.chat_frame.add_chat_bubble(human_input, sender="user")
 
+            def continue_logic():
+                print("here")
+
+                # Inside your test loop where you chat
+                self.episode = episode
+                self.step = step
+                self.observation = observation
+                self.episode_reward = episode_reward
+                self.total_reward_sum = total_reward_sum
+                self.terminated = terminated
+                self.truncated = truncated
+                self.done=terminated or truncated
+          
+
+                # q = input("Next action?")
+                # if q == "y":
+                #     done = terminated or truncated
+                #     self.after(100, self.run_step, episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated)
+
+        
+            self.chat_frame.stream_reasoning(human_input, on_complete=continue_logic)
+        
+       
+        # q=input("Next action?")
+   
+        # if q=="y":
+
+        #     done = terminated or truncated
+        #     self.after(100, self.run_step, episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated)  
+        
+    def resume_step(self):
+        if not hasattr(self, '_waiting_step_data'):
+            return
+
+        episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated = self._waiting_step_data
+        self._paused = False
+
+        state = observation
+        action = np.argmax(self.q_table[state])
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        episode_reward += reward
+        step += 1
+
+        self.update_display(self.env.render())
         done = terminated or truncated
-        self.after(100, self.run_step, episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated)  
+
+        # Continue to next step
+        self.after(100, self.run_step, episode, step, observation, episode_reward, total_reward_sum, done, terminated, truncated)
+
     def display_image(self, img_tk):
         """Display the rendered image of the environment"""
         label = ctk.CTkLabel(self.main_frame, image=img_tk)
@@ -497,4 +628,5 @@ class RenderScene(ctk.CTkFrame):
                     self.process.terminate()
                 except:
                     pass
+
 

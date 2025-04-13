@@ -47,9 +47,17 @@ class BaseAgent:
 
     def start_ollama_serve(self):
         """Starts the Ollama server."""
+
+        print("[✓] Stopping any existing Ollama server...")
+        subprocess.call(["pkill", "-f", "ollama"])
+
+        time.sleep(2)  # Small delay to ensure the process is stopped
+
         print("[✓] Starting Ollama server...")
         self.process = subprocess.Popen(["ollama", "serve"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(5)  # Give it time to start
+    
+
+        time.sleep(5) 
 
     def stop_ollama_serve(self):
         """Stops the Ollama server."""

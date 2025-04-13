@@ -18,9 +18,9 @@ Action move_w := 3
 Effect main:
     if A == move_e and x == grid_width - 1:
         S' -> S
-    elif A == move_w and x == 0:
+    if A == move_w and x == 0:
         S' -> S
-    elif A == move_n and y == 0:
+    if A == move_n and y == 0:
         S' -> S
-    elif A == move_s and y == grid_height - 1:
+    if A == move_s and y == grid_height - 1:
         S' -> S

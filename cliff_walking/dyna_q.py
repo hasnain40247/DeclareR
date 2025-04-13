@@ -56,7 +56,12 @@ class RLangDynaQAgent(BaseDynaQAgent):
             if self.knowledge and random.random() < self.p_policy:
                 vector_s = self.state_to_vector(state)
                 action = self.policy(state=VectorState(vector_s))
-                return int(list(action.keys())[0][0])
+             
+                if not action:
+                    return self.env.action_space.sample()
+                else:
+
+                    return int(list(action.keys())[0][0])
             
             if random.random() < self.epsilon:
                 return self.env.action_space.sample()

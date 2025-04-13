@@ -13,6 +13,7 @@ import pygame
 import os  # To force quit Pygame if needed
 import json
 
+
 class BaseRLangQLearningAgent:
     def __init__(self, env, env_name="taxi", knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
         self.env = env
@@ -94,21 +95,56 @@ class BaseRLangQLearningAgent:
             json.dump(self.training_details, f)
         return rewards_per_episode
 
+    # def test(self, episodes=10, render=True):
+    #     self.env = gym.make(self.env.spec.id, render_mode='human')
+    
+    #     pygame.display.set_mode((500, 500))
+
+    #     rewards_per_episode = np.zeros(episodes)
+    #     for i in range(episodes):
+    #         state = self.env.reset()[0]
+        
+    #         terminated, truncated, rewards = False, False, 0
+            
+    #         while not (terminated or truncated):
+    #             action = np.argmax(self.q_table[state])
+    #             state, reward, terminated, truncated, _ = self.env.step(action)
+    #             rewards += reward
+                
+    #         rewards_per_episode[i] = rewards
+            
+    #     if render:
+    #         self.env.close()
+    #         self.env = gym.make(self.env.spec.id)
+    #         self.env.reset()
+        
+    #     self.env.close()
+    #     pygame.quit()
+    #     print(f"Average reward over {episodes} test episodes: {np.mean(rewards_per_episode)}")
+    #     return np.mean(rewards_per_episode)
+
     def test(self, episodes=10, render=True):
         self.env = gym.make(self.env.spec.id, render_mode='human')
     
         pygame.display.set_mode((500, 500))
 
         rewards_per_episode = np.zeros(episodes)
+        episode_descriptions = []
         for i in range(episodes):
             state = self.env.reset()[0]
         
             terminated, truncated, rewards = False, False, 0
-            
+            action_descriptions = []           
             while not (terminated or truncated):
                 action = np.argmax(self.q_table[state])
+                # Generate input string
+                input_string = generate_input(state, action)
+                action_descriptions.append(input_string)
+
                 state, reward, terminated, truncated, _ = self.env.step(action)
                 rewards += reward
+
+            episode_descriptions.append(action_descriptions)
                 
             rewards_per_episode[i] = rewards
             
@@ -120,8 +156,7 @@ class BaseRLangQLearningAgent:
         self.env.close()
         pygame.quit()
         print(f"Average reward over {episodes} test episodes: {np.mean(rewards_per_episode)}")
-        return np.mean(rewards_per_episode)
-
+        return np.mean(rewards_per_episode), episode_descriptions
     def plot_training_rewards(self, rewards, window_size=100, save_path="training_rewards.png"):
         episodes = np.arange(len(rewards))
     

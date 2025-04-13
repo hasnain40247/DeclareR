@@ -1,5 +1,5 @@
 [LOG] Parsing file: policy.rlang
-[LOG] Policy Function → <Policy [STATE]->[ACTION] "dropper">
+[LOG] Policy Function → <Policy [STATE]->[ACTION] "taxi_drop">
 [LOG] Beginning policy execution logging...
 
 [LOG] State=[0, 0, 0, 0], Action={}

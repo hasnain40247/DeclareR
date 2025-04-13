@@ -1,0 +1,46 @@
+ In this scenario, the taxi is trying to move from the passenger's location (Green, G) to the destination (Red, R). The passenger's location is always static, while the destination is given and can change.
+
+1. State: Taxi at (2, 0), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+   Rationale: The taxi is initially at (2, 0) and the destination is (0, 0). To move towards the destination, the taxi needs to go East.
+
+2. State: Taxi at (2, 1), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+   Rationale: The taxi is already moving towards the destination and still needs to move more East to reach it.
+
+3. State: Taxi at (2, 2), passenger at G (0, 4), destination is R (0, 0). Action Taken: 1 (North)
+   Rationale: The taxi cannot move East any further, so it chooses the next best option, which is to move North towards the destination.
+
+4. State: Taxi at (1, 2), passenger at G (0, 4), destination is R (0, 0). Action Taken: 1 (North)
+   Rationale: The taxi is moving North towards the destination.
+
+5. State: Taxi at (0, 2), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+   Rationale: The taxi can now move East towards the destination.
+
+6. State: Taxi at (0, 3), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+   Rationale: The taxi is still moving East towards the destination.
+
+7. State: Taxi at (0, 4), passenger at G (0, 4), destination is R (0, 0). Action Taken: 4 (Pickup)
+   Rationale: The taxi reaches the passenger's location and picks them up. Now, the passenger is in the taxi.
+
+8. State: Taxi at (0, 4), passenger is in the taxi, destination is R (0, 0). Action Taken: 0 (South)
+   Rationale: Since the destination is to the South, the taxi moves South.
+
+9. State: Taxi at (1, 4), passenger is in the taxi, destination is R (0, 0). Action Taken: 0 (South)
+   Rationale: The taxi is moving South towards the destination.
+
+10. State: Taxi at (2, 4), passenger is in the taxi, destination is R (0, 0). Action Taken: 3 (West)
+    Rationale: The taxi cannot move South any further, so it chooses the next best option, which is to move West towards the destination.
+
+11. State: Taxi at (2, 3), passenger is in the taxi, destination is R (0, 0). Action Taken: 3 (West)
+    Rationale: The taxi is moving West towards the destination.
+
+12. State: Taxi at (2, 2), passenger is in the taxi, destination is R (0, 0). Action Taken: 3 (West)
+    Rationale: The taxi is still moving West towards the destination.
+
+13. State: Taxi at (2, 1), passenger is in the taxi, destination is R (0, 0). Action Taken: 1 (North)
+    Rationale: The taxi cannot move West any further, so it chooses the next best option, which is to move North towards the destination.
+
+14. State: Taxi at (1, 1), passenger is in the taxi, destination is R (0, 0). Action Taken: 1 (North)
+    Rationale: The taxi is moving North towards the destination.
+
+15. State: Taxi at (0, 1), passenger is in the taxi, destination is R (0, 0). Action Taken: 3 (West)
+    Rationale: The taxi cannot move North any further, so it chooses the next best option, which is to move West towards the

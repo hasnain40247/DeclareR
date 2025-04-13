@@ -20,6 +20,6 @@ Action move_w := 3
 Action pick_up := 4
 Action drop_off := 5
 
-Policy dropper:
+Policy taxi_drop:
     if at_destination and carrying_passenger:
         Execute drop_off

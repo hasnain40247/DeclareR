@@ -20,5 +20,5 @@ Action pick_up := 4
 Action drop_off := 5
 
 Effect main:
-    if at_passenger and A == pick_up:
-        S'.passenger_location -> S.taxi_position
+    if (A == pick_up or A == drop_off) and not (at_destination or at_passenger):
+        Reward -10

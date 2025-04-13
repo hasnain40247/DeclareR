@@ -330,3 +330,30 @@ Policy main:
     elif row < 3:
         Execute down
 """
+
+
+reasoning_fewshots="""
+State: Taxi at (2, 0), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+Rationale: The taxi is initially at (2, 0) and the destination is (0, 0). To move towards the destination, the taxi needs to go East.
+
+State: Taxi at (2, 1), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+Rationale: The taxi is already moving towards the destination and still needs to move more East to reach it.
+
+State: Taxi at (2, 2), passenger at G (0, 4), destination is R (0, 0). Action Taken: 1 (North)
+Rationale: The taxi cannot move East any further, so it chooses the next best option, which is to move North towards the destination.
+
+State: Taxi at (1, 2), passenger at G (0, 4), destination is R (0, 0). Action Taken: 1 (North)
+Rationale: The taxi is moving North towards the destination.
+
+State: Taxi at (0, 2), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+Rationale: The taxi can now move East towards the destination.
+
+State: Taxi at (0, 3), passenger at G (0, 4), destination is R (0, 0). Action Taken: 2 (East)
+Rationale: The taxi is still moving East towards the destination.
+
+State: Taxi at (0, 4), passenger at G (0, 4), destination is R (0, 0). Action Taken: 4 (Pickup)
+Rationale: The taxi reaches the passenger's location and picks them up. Now, the passenger is in the taxi.
+
+State: Taxi at (0, 4), passenger is in the taxi, destination is R (0, 0). Action Taken: 0 (South)
+Rationale: Since the destination is to the South, the taxi moves South.
+"""

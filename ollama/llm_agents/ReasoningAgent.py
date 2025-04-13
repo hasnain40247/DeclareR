@@ -1,57 +1,64 @@
 import ollama
-
-import time
 import subprocess
+import time
 
-class ReasoningAgent():
-    def __init__(self, model="llama3:8b"):
+class ReasoningAgent:
+    def __init__(self,fewshots, model="mistral:7b-instruct-v0.2-q8_0"):
         self.model = model
+        self.process = None  
+        self.few_shots=fewshots
 
-    def generate_reasoning_stream(self, state, action, rgb_array=None):
+    def build_prompt(self, state_action_description):
         """
-        Generate reasoning with streaming, allowing incremental responses.
-        
-        Args:
-        - state (str): The current state of the environment.
-        - action (str): The action taken by the agent.
-        - rgb_array (np.array or list): The RGB array of the environment, can be a visual representation.
-        
-        Returns:
-        - generator: A streaming generator that yields the reasoning chunks.
+        Build a prompt using the state-action description for a single step.
         """
-        rgb_input = ""
-        if rgb_array is not None:
-            rgb_input = f"RGB Array (Visual Input): {str(rgb_array)}"
+        header = """You are an intelligent reasoning assistant that explains agent decisions in the OpenAI Taxi-v3 environment.
 
-        prompt = f"""
-            You are a NLP reasoning agent that, upon given a state, action, you reason as to why you have chosen that
+        In this environment:
+        - The world is a 5x5 grid with four fixed landmarks:
+            R (Red): (0, 0), G (Green): (0, 4), Y (Yellow): (4, 0), B (Blue): (4, 3)
+        - A taxi must pick up a passenger and drop them off at their destination.
+        - The state includes the taxi’s position, the passenger’s location (or whether they’re in the taxi), and the destination.
+        - The agent can take one of the following actions:
+            0 = South, 1 = North, 2 = East, 3 = West, 4 = Pickup, 5 = Dropoff
 
-            ### Output Instruction:
-            **Ensure the output is just the reasoning behind the action. Do not return any explanatory text at all.**
+        Given a state and the action taken, explain the rationale behind the agent's choice and keep it brief.
 
-            ### Now generate reasoning for the following action based on the current state and visual input:
+        ### Output Instruction:
+        **Ensure that only the rationale is returned. Do not return any explanatory text at all.**
 
-            State: "{state}"
-            Action: "{action}"
-            {rgb_input}
-
-            Reasoning:
-            """
+        ### Few-Shot Examples:
+        {self.few_shots}
+        """
         
-        # Use streaming for the response
+        prompt = f"{header}\n\n{state_action_description}\nRationale:\n"
+        return prompt
+
+    def generate_reasoning_stream(self, state_action_description):
+        """
+        Generate streamed rationale for a single state-action description.
+        """
+        prompt = self.build_prompt(state_action_description)
         stream = ollama.chat(model=self.model, messages=[{"role": "user", "content": prompt}], stream=True)
 
-        # Yield each chunk of the streamed response
         for chunk in stream:
-            # Assuming `chunk['message']['content']` contains the reasoning text
             if 'message' in chunk and 'content' in chunk['message']:
-                yield chunk['message']['content']  # Yield the content incrementally
+                yield chunk['message']['content']
 
     def start_ollama_serve(self):
-        """Starts the Ollama server."""
+        """Starts the Ollama server (if needed)."""
+        print("[✓] Stopping any existing Ollama server...")
+        subprocess.call(["pkill", "-f", "ollama"])
+
+        time.sleep(2)  # Small delay to ensure the process is stopped
+
         print("[✓] Starting Ollama server...")
         self.process = subprocess.Popen(["ollama", "serve"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(5)  # Give it time to start
+    
+
+        time.sleep(5) 
+
+
 
     def stop_ollama_serve(self):
         """Stops the Ollama server."""
