@@ -18,7 +18,7 @@ from base_r_max import BaseRLangRMaxAgent
 
 class RLangRMaxAgent(BaseRLangRMaxAgent):
     def __init__(self, env, knowledge=None,  r_max=20, gamma=0.95, delta=0.01, M=1):
-        super().__init__(env, knowledge=knowledge, r_max=20, gamma=0.95, delta=0.01, M=1)
+        super().__init__(env, knowledge=knowledge, r_max=r_max, gamma=gamma, delta=delta, M=M)
 
     def preload_knowledge(self):
         if not self.knowledge:

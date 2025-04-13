@@ -18,7 +18,7 @@ from base_dyna_q import BaseDynaQAgent
 
 class RLangDynaQAgent(BaseDynaQAgent):
     def __init__(self, env, n_planning_steps, alpha=0.1, gamma=0.99, epsilon=0.1, knowledge=None,policy_name=None, p_policy=0.2):
-       super().__init__(env, n_planning_steps, alpha=0.1, gamma=0.99, epsilon=0.1, knowledge=knowledge,policy_name=policy_name, p_policy=0.2)
+       super().__init__(env, n_planning_steps, alpha=alpha, gamma=gamma, epsilon=epsilon, knowledge=knowledge,policy_name=policy_name, p_policy=p_policy)
     def preload_knowledge(self):
         q_func = defaultdict(lambda: defaultdict(lambda: 0))
         reward_function = self.knowledge.reward_function
