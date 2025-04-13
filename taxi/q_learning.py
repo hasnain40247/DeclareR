@@ -20,7 +20,7 @@ from base_q_learning import BaseRLangQLearningAgent
 
 class RLangQLearningAgent(BaseRLangQLearningAgent):
     def __init__(self, env,env_name="taxi",knowledge=None, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001):
-        super().__init__(env,env_name="taxi",knowledge=knowledge, alpha=0.9, gamma=0.9, epsilon=1, epsilon_decay=0.0001)
+        super().__init__(env,env_name=env_name,knowledge=knowledge, alpha=alpha, gamma=gamma, epsilon=epsilon, epsilon_decay=epsilon_decay)
 
     def preload_knowledge(self):
         states = range(self.env.observation_space.n)
